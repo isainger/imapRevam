@@ -16,7 +16,7 @@ const RadioBtn = (props) => {
             >
               <Wrapper>
                 {data.map((item, index) => (
-                  <Radio key={index} value={item} label={item} color='#32035e'/>
+                  <Radio key={index} value={item} label={item} color='#7030a0'/>
                 ))}
               </Wrapper>
             </Radio.Group>
