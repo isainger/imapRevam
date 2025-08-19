@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "@mantine/form";
-import EmailPrev from "./EmailTemplateLayout";
-import groupedProductOptions from "./components/GroupedProductItems";
-import btnImage from "./assets/bg.jpg";
+import groupedProductOptions from "./data/GroupedProductItems";
+import emailGroups from "./data/EmailGroups";
+import performers from "./data/performerList";
+import RadioBtn from "./components/RadioBtn";
+import IncidentTxtBox from "./components/IncidentTxtBox";
+import DropdownBtn from "./components/DropdownBtn";
+import MultiSelectEmails from "./components/MultiSelectEmails";
+import ActionBtn from "./components/ActionBtn";
+import InputBtn from "./components/InputBtn";
+import DateTimeSelector from "./components/DateTimeSelector";
+import EmailTemplateLayout from "./EmailTemplateLayout";
 import {
   TextInput,
-  Button,
   Box,
   Title,
   Stack,
@@ -15,20 +22,7 @@ import {
   Modal,
   BackgroundImage,
 } from "@mantine/core";
-import {
-  allNotificationMails,
-  msftMails,
-  taboolaNewsMails,
-  headerBiddingMails,
-} from "./components/EmailGroups";
-import RadioBtn from "./components/RadioBtn";
-import IncidentTxtBox from "./components/IncidentTxtBox";
-import DropdownBtn from "./components/DropdownBtn";
-import MultiSelectEmails from "./components/MultiSelectEmails";
-import ActionBtn from "./components/ActionBtn";
-import InputBtn from "./components/InputBtn";
-import DateTimeSelector from "./components/DateTimeSelector";
-import EmailTemplateLayout from "./EmailTemplateLayout";
+import SearchableInput from "./components/SearchableInput";
 
 const Bar = () => {
   const formTabs = ["General", "Publisher", "Advertiser", "Header Bidding"];
@@ -57,6 +51,8 @@ const Bar = () => {
       inputBox: {
         inputNumber: "",
         subject: "",
+        incidentLink: "",
+        performer: "",
       },
       radio: {
         inputIncident: "",
@@ -94,6 +90,16 @@ const Bar = () => {
         subject: (value) =>
           value.trim().length < 5
             ? "Subject must be at least 5 characters"
+            : null,
+        incidentLink: (value) =>
+          !/^https:\/\/taboola\.lightning\.force\.com\/lightning\/r\/Case\/[A-Za-z0-9]+\/view$/.test(
+            value
+          )
+            ? "Please enter a valid Taboola Case link"
+            : null,
+        performer: (value) =>
+          !/^[A-Za-z\s]+ \([A-Za-z0-9._%+-]+@taboola\.com\)$/.test(value)
+            ? "Please select a valid name and a valid Taboola email"
             : null,
       },
 
@@ -162,15 +168,11 @@ const Bar = () => {
   };
 
   useEffect(() => {
-    const mergedEmails = [
-      ...allNotificationMails,
-      ...msftMails,
-      ...taboolaNewsMails,
-      ...headerBiddingMails,
-    ];
-    const uniqueEmails = Array.from(new Set(mergedEmails));
-
-    form.setFieldValue("dropDown.allEmailOptions", uniqueEmails);
+    const mergedEmails = Object.entries(emailGroups).map(([key, emails]) => ({
+      group: key,
+      emails: [...new Set(emails)], // dedupe per group
+    }));
+    form.setFieldValue("dropDown.allEmailOptions", mergedEmails);
   }, []);
 
   useEffect(() => {
@@ -185,33 +187,22 @@ const Bar = () => {
         break;
       }
     }
-
-    let emailOptions = [];
-
-    switch (selectedGroup) {
-      case "Pub":
-      case "Advertiser":
-        emailOptions = allNotificationMails;
-        break;
-      case "MSFT":
-        emailOptions = msftMails;
-        break;
-      case "Taboola News":
-        emailOptions = taboolaNewsMails;
-        break;
-      case "Header Bidding":
-        emailOptions = headerBiddingMails;
-        break;
-      default:
-        emailOptions = [];
-    }
-    form.setFieldValue("dropDown.notificationMails", emailOptions);
+    form.values.dropDown.allEmailOptions.map((item) => {
+      if (selectedGroup === item.group) {
+        form.setFieldValue("dropDown.notificationMails", item.emails);
+        return;
+      }
+    });
   }, [form.values.dropDown.affectedProduct]);
 
-  const btnClick = (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    form.setFieldValue("dropDown.affectedProduct", null);
+    form.setFieldValue("dropDown.notificationMails", []);
+  }, [form.values.tabSelected]);
 
-    // const valueIndex=status.indexOf(usedState);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    form.validate();
   };
 
   const searchIncident = () => {
@@ -230,20 +221,31 @@ const Bar = () => {
           </Title>
         </div>
       </Box>
-      <div className="flex w-full gap-4 justify-center items-center p-4">
+      <div className="flex w-full gap-4 justify-center items-center p-4 border-b-2 border-b-gray-100">
         {formTabs.map((item, index) => (
           <div
             key={index}
             className="flex flex-col flex-[1_0_auto] justify-center w-auto items-center cursor-pointer"
-            onClick={() => handleChange("tabSelected", item)}>
+            onClick={() => handleChange("tabSelected", item)}
+          >
             <div
               className={`w-full min-h-2 relative rounded-[3px] 
-    ${form.values.tabSelected === item ? "bg-[#7030a0]" : "bg-[#F4E6EB]"}  
-    ${form.values.tabSelected === item
+    ${form.values.tabSelected === item ? "bg-[#7030a0]" : "bg-[#ba99a5]"}  
+    ${
+      form.values.tabSelected === item
         ? 'after:border-t-[#7030a0] after:absolute after:w-0 after:h-0 after:border-l-[12px] after:border-l-transparent after:border-r-[12px] after:border-r-transparent after:border-t-[13px] after:content-[""] after:left-1/2 after:-translate-x-1/2'
-        : ''}`}
+        : ""
+    }`}
             ></div>
-            <div className={`${form.values.tabSelected === item ? "text-[#7030a0]" : "text-[#F4E6EB]"}`}>{item}</div>
+            <div
+              className={`${
+                form.values.tabSelected === item
+                  ? "text-[#7030a0]"
+                  : "text-[#ba99a5]"
+              }`}
+            >
+              {item}
+            </div>
           </div>
         ))}
       </div>
@@ -253,10 +255,12 @@ const Bar = () => {
 
           <RadioBtn
             data={["Yes", "No"]}
-            radioValue={form.values.radio.inputIncident}
-            onChange={(val) => handleChange("radio.inputIncident", val)}
             radioHead="Already Incident"
             horizontal={true}
+            inputProps={{
+              ...form.getInputProps("radio.inputIncident"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("radio.inputIncident", val), // replace default onChange
+            }}
           />
 
           {/* Conditional input for incident number */}
@@ -267,10 +271,11 @@ const Bar = () => {
               width="auto"
               placeholder="Enter Incident Number"
               isBtn={true}
-              onChange={(e) =>
-                form.setFieldValue("inputBox.inputNumber", e.target.value)
-              }
-              value={form.values.inputBox.inputNumber}
+              inputProps={{
+                ...form.getInputProps("inputBox.inputNumber"), // keeps value, error, onBlur, etc.
+                onChange: (e) =>
+                  handleChange("inputBox.inputNumber", e.target.value), // replace default onChange
+              }}
             />
           )}
           {/* Subject input */}
@@ -280,10 +285,10 @@ const Bar = () => {
             width="100%"
             placeholder="Enter Subject"
             isBtn={false}
-            onChange={(e) =>
-              form.setFieldValue("inputBox.subject", e.target.value)
-            }
-            value={form.values.inputBox.subject}
+            inputProps={{
+              ...form.getInputProps("inputBox.subject"), // keeps value, error, onBlur, etc.
+              onChange: (e) => handleChange("inputBox.subject", e.target.value), // replace default onChange
+            }}
           />
 
           <IncidentTxtBox />
@@ -291,27 +296,43 @@ const Bar = () => {
           {/* Status Radio Group */}
           <RadioBtn
             data={Object.keys(statusGradientMap)}
-            radioValue={form.values.radio.status}
-            onChange={(val) => handleChange("radio.status", val)}
             radioHead="Status"
+            inputProps={{
+              ...form.getInputProps("radio.status"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("radio.status", val), // replace default onChange
+            }}
           />
           <DropdownBtn
             title="Reported By: "
             data={["Product/RnD", "PS/Support", "Customer", "Business"]}
-            value={form.values.dropDown.reportedBy}
-            onChange={(val) => handleChange("dropDown.reportedBy", val)}
+            inputProps={{
+              ...form.getInputProps("dropDown.reportedBy"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("dropDown.reportedBy", val), // replace default onChange
+            }}
           />
           <DropdownBtn
             title="Severity: "
             data={["Emergency", "High", "Standard"]}
-            value={form.values.dropDown.severity}
-            onChange={(val) => handleChange("dropDown.severity", val)}
+            inputProps={{
+              ...form.getInputProps("dropDown.severity"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("dropDown.severity", val), // replace default onChange
+            }}
           />
           <DropdownBtn
             title="Affected Product: "
-            data={groupedProductOptions}
-            value={form.values.dropDown.affectedProduct}
-            onChange={(val) => handleChange("dropDown.affectedProduct", val)}
+            data={
+              groupedProductOptions.find(
+                (item) => item.group === form.values.tabSelected
+              )
+                ? groupedProductOptions.find(
+                    (item) => item.group === form.values.tabSelected
+                  ).items
+                : groupedProductOptions
+            }
+            inputProps={{
+              ...form.getInputProps("dropDown.affectedProduct"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("dropDown.affectedProduct", val), // replace default onChange
+            }}
           />
           <MultiSelectEmails
             options={form.values.dropDown.allEmailOptions}
@@ -322,9 +343,11 @@ const Bar = () => {
 
           <RadioBtn
             data={["Downtime", "Service Interruption", "Maintainence"]}
-            radioValue={form.values.radio.incidentType}
-            onChange={(val) => handleChange("radio.incidentType", val)}
             radioHead="Incident Type"
+            inputProps={{
+              ...form.getInputProps("radio.incidentType"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("radio.incidentType", val), // replace default onChange
+            }}
           />
 
           <DateTimeSelector
@@ -333,6 +356,7 @@ const Bar = () => {
             utcValue={form.values.dateTime.startTime.utc}
             label="Started Time (UTC) :"
             checkBox={false}
+            inputProps={form.getInputProps("dateTime.startTime")}
           />
 
           <DateTimeSelector
@@ -341,13 +365,16 @@ const Bar = () => {
             utcValue={form.values.dateTime.discoveredTime.utc}
             label="Support Discovered Time (UTC) :"
             checkBox={false}
+            inputProps={form.getInputProps("dateTime.discoveredTime")}
           />
 
           <RadioBtn
             data={["Yes", "No"]}
-            radioValue={form.values.radio.revenueImpact}
-            onChange={(val) => handleChange("radio.revenueImpact", val)}
             radioHead="Revenue Impact"
+            inputProps={{
+              ...form.getInputProps("radio.revenueImpact"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("radio.revenueImpact", val), // replace default onChange
+            }}
           />
 
           {form.values.radio.revenueImpact === "Yes" && (
@@ -377,8 +404,10 @@ const Bar = () => {
               "Optimize",
               "Self-Service",
             ]}
-            value={form.values.dropDown.regionImpacted}
-            onChange={(val) => handleChange("dropDown.regionImpacted", val)}
+            inputProps={{
+              ...form.getInputProps("dropDown.regionImpacted"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("dropDown.regionImpacted", val), // replace default onChange
+            }}
           />
 
           <DropdownBtn
@@ -388,8 +417,10 @@ const Bar = () => {
               "Intermittent",
               "Limited Functionality",
             ]}
-            value={form.values.dropDown.serviceImpacted}
-            onChange={(val) => handleChange("dropDown.serviceImpacted", val)}
+            inputProps={{
+              ...form.getInputProps("dropDown.serviceImpacted"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("dropDown.serviceImpacted", val), // replace default onChange
+            }}
           />
 
           <InputBtn
@@ -398,13 +429,18 @@ const Bar = () => {
             width="100%"
             placeholder="Enter Incident Link"
             isBtn={false}
+            inputProps={{
+              ...form.getInputProps("inputBox.incidentLink"), // keeps value, error, onBlur, etc.
+              onChange: (e) =>
+                handleChange("inputBox.incidentLink", e.target.value), // replace default onChange
+            }}
           />
-          <InputBtn
-            horizontalLayout={false}
+          <SearchableInput
             title="Performer: "
             width="100%"
             placeholder="Enter your Taboola Email Id"
-            isBtn={false}
+            data={performers}
+            inputProps={form.getInputProps("inputBox.performer")}
           />
           <DateTimeSelector
             value={form.values.dateTime.nextUpdateTime.local}
@@ -412,6 +448,7 @@ const Bar = () => {
             utcValue={form.values.dateTime.nextUpdateTime.utc}
             label="Next Update Time (UTC) :"
             checkBox={true}
+            inputProps={form.getInputProps("dateTime.nextUpdateTime")}
           />
           <Box
             w="100%"
@@ -437,6 +474,7 @@ const Bar = () => {
               btnFont="save"
               btnStyle=""
               btnHeight="3rem"
+              onClick={handleSubmit}
             />
           </Box>
         </form>

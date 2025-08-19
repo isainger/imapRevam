@@ -3,7 +3,7 @@ import { DateTimePicker } from "@mantine/dates";
 import { Box, Group, Text, Title } from "@mantine/core";
 
 const DateTimeSelector = (props) => {
-  const { label, value, onChange, utcValue, checkBox } = props;
+  const { label, value, onChange, utcValue, checkBox, inputProps } = props;
 
   // ✅ Format UTC date string like: Tue 05 August 2025 at 18:30 (UTC)
   const formatUTCDate = (utcDateString) => {
@@ -36,7 +36,7 @@ const DateTimeSelector = (props) => {
   return (
     <Group spacing="lg" w="100%" justify="space-between">
       <Title order={5} ta="left" w="24%">
-        {label}
+        {label} <span style={{ color: "red" }}>* </span>
       </Title>
       <Box w="72%" display="flex" style={{ justifyContent: "space-evenly" }}>
         <DateTimePicker
@@ -49,6 +49,7 @@ const DateTimeSelector = (props) => {
           size="md"
           clearable
           withSeconds
+          error={inputProps.error}
         />
         <Box display="flex" style={{ alignItems: "center" }} w="40%">
           {utcValue && <Text size="sm">{formatUTCDate(utcValue)}</Text>}

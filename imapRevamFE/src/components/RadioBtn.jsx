@@ -2,17 +2,17 @@ import React from 'react'
 import {Title, Stack, Radio, Group } from "@mantine/core";
 
 const RadioBtn = (props) => {
-    const {data, radioValue ,onChange, radioHead, horizontal} = props;
+    const {data ,onChange, radioHead, horizontal,inputProps} = props;
     const Wrapper = horizontal ? Group : Stack;
+
   return (
     <>
        <Stack gap="xs">
-            <Title order={5} ta="left">{radioHead}:</Title>
+            <Title order={5} ta="left">{radioHead}: <span style={{ color: "red" }}>* </span></Title>
             <Radio.Group
-              value={radioValue}
-              onChange={onChange}
               name={radioHead.replace(/\s+/g, '-').toLowerCase()}
               orientation="horizontal"
+              {...inputProps}
             >
               <Wrapper>
                 {data.map((item, index) => (

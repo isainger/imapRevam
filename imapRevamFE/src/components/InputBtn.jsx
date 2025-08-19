@@ -3,17 +3,16 @@ import React from 'react'
 import ActionBtn from './ActionBtn'
 
 const InputBtn = (props) => {
-    const {horizontalLayout,title, width, placeholder,isBtn,onChange,value} = props
+    const {horizontalLayout,title, width, placeholder,isBtn, inputProps} = props
     const Layout = horizontalLayout ? Group : Stack
   return (
     <Layout w={width}>
-    <Title order={5} ta="left">{title}</Title>
+    <Title order={5} ta="left">{title} <span style={{ color: "red" }}>* </span></Title>
     <TextInput
     classNames={{ input: "custom-input" }}
       placeholder={placeholder}
-      value={value}
-      onChange={onChange}
       size="md"
+      {...inputProps}
     />
     {isBtn &&
         <ActionBtn

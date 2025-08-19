@@ -1,6 +1,6 @@
 const groupedProductOptions = [
     {
-      group: "Pub",
+      group: "Publisher",
       items: [
         "Api recommendation",
         "Backstage - Publisher - Data delay",
@@ -54,34 +54,34 @@ const groupedProductOptions = [
         "Taboola News - Quality",
       ],
     },
-    {
-      group: "General",
-      items: [
-        "Backstage functionality broken",
-        "Backstage unavailable",
-        "Data delay",
-        "Data loss",
-        "Internal tools",
-        "No business impact",
-        "Serving - Availability",
-        "Serving - Quality",
-        "Serving - Video - Availability",
-        "Serving - Video - Quality",
-      ],
-    },
-    {
-      group: "Taboola News",
-      items: [
-        "ECN - Availability",
-        "ECN - Quality",
-        "Magazine - Availability",
-        "Magazine - Quality",
-      ],
-    },
-    { group: "MSFT", items: ["MSFT Validation"] },
-    { group: "Other", items: ["Other"] },
+    // {
+    //   group: "General",
+    //   items: [
+    //     "Backstage functionality broken",
+    //     "Backstage unavailable",
+    //     "Data delay",
+    //     "Data loss",
+    //     "Internal tools",
+    //     "No business impact",
+    //     "Serving - Availability",
+    //     "Serving - Quality",
+    //     "Serving - Video - Availability",
+    //     "Serving - Video - Quality",
+    //   ],
+    // },
+    // {
+    //   group: "Taboola News",
+    //   items: [
+    //     "ECN - Availability",
+    //     "ECN - Quality",
+    //     "Magazine - Availability",
+    //     "Magazine - Quality",
+    //   ],
+    // },
+    // { group: "MSFT", items: ["MSFT Validation"] },
+    // { group: "Other", items: ["Other"] },
     { group: "Header Bidding", items: ["Header Bidding/Bidder"] },
-    { group: "test", items: ["Test"] },
+    // { group: "test", items: ["Test"] },
   ];
   
   export default groupedProductOptions;

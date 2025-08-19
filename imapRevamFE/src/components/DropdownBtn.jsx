@@ -2,7 +2,7 @@ import { Select, Stack, Title } from "@mantine/core";
 import React from "react";
 
 const DropdownBtn = (props) => {
-  const { title, data, value, onChange, grouped = false } = props;
+  const { title, data,grouped = false , inputProps} = props;
 
   const options = grouped
     ? data.flatMap((group) =>
@@ -16,17 +16,16 @@ const DropdownBtn = (props) => {
   return (
     <Stack gap="xs" w="100%">
       <Title order={5} ta="left">
-        {title}
+        {title} <span style={{ color: "red" }}>* </span>
       </Title>
       <Select
       classNames={{ input: "custom-input" }}
         data={options}
-        value={value}
-        onChange={onChange}
         searchable
         autoSelectOnBlur
         nothingFoundMessage="No Options"
         comboboxProps={{ position: 'bottom', middlewares: { flip: false, shift: false }, offset: 0 }}
+        {...inputProps}
       />
     </Stack>
   );
