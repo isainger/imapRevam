@@ -1,11 +1,16 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { DateTimePicker } from "@mantine/dates";
 import { Box, Group, Text, Title } from "@mantine/core";
 
 const DateTimeSelector = (props) => {
   const { label, value, onChange, utcValue, checkBox, inputProps } = props;
+  const [tempValue, setTempValue] = useState(value);
 
-  // ✅ Format UTC date string like: Tue 05 August 2025 at 18:30 (UTC)
+  useEffect(() => {
+    setTempValue(value);
+  }, [value]);
+
+  // ✅ Format UTC nicely
   const formatUTCDate = (utcDateString) => {
     if (!utcDateString) return "";
 
@@ -14,23 +19,40 @@ const DateTimeSelector = (props) => {
     const day = new Intl.DateTimeFormat("en-US", {
       weekday: "short",
       timeZone: "UTC",
-    }).format(utcDate); // Tue
+    }).format(utcDate);
 
     const date = new Intl.DateTimeFormat("en-GB", {
       day: "2-digit",
       month: "long",
       year: "numeric",
       timeZone: "UTC",
-    }).format(utcDate); // 05 August 2025
+    }).format(utcDate);
 
     const time = new Intl.DateTimeFormat("en-GB", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
       timeZone: "UTC",
-    }).format(utcDate); // 18:30
+    }).format(utcDate);
 
     return `${day} ${date} at ${time} (UTC)`;
+  };
+
+  const handleTempChange = (newValue) => {
+    if (!newValue) {
+      setTempValue(null);
+      onChange?.(null);
+      return;
+    }
+
+    const newDate =
+      typeof newValue === "string" ? new Date(newValue) : newValue;
+
+    if (!(newDate instanceof Date) || isNaN(newDate)) return;
+    setTempValue(newDate);
+
+    // ✅ Always commit both date + time when user changes (don’t block 00:00)
+    onChange?.(newDate);
   };
 
   return (
@@ -40,16 +62,16 @@ const DateTimeSelector = (props) => {
       </Title>
       <Box w="72%" display="flex" style={{ justifyContent: "space-evenly" }}>
         <DateTimePicker
-         classNames={{input:"custom-input"}}
+          classNames={{ input: "custom-input" }}
           placeholder="Pick date and time"
-          value={value}
-          onChange={onChange}
+          value={tempValue}
+          onChange={handleTempChange}
           radius="md"
           w="50%"
           size="md"
           clearable
-          withSeconds
-          error={inputProps.error}
+          withSeconds={false}
+          error={inputProps?.error}
         />
         <Box display="flex" style={{ alignItems: "center" }} w="40%">
           {utcValue && <Text size="sm">{formatUTCDate(utcValue)}</Text>}

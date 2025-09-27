@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Stack } from '@mantine/core';
+import { Card, Stack, Text } from '@mantine/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import { useEditor } from '@tiptap/react';
 import { Global } from '@mantine/styles'; 
@@ -11,7 +11,8 @@ import { Superscript } from '@tiptap/extension-superscript';
 import { Subscript } from '@tiptap/extension-subscript';
 
 
-const IncidentTxtBox = () => {
+const IncidentTxtBox = ({inputProps, startingLine}) => {
+  const { value, onChange, error, ...rest } = inputProps;
   const [version, setVersion] = useState(0);
 
   const editor = useEditor({
@@ -23,9 +24,17 @@ const IncidentTxtBox = () => {
       Color,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
-    content: '<p>Incident Details :</p>',
+    content: value ? `<p>${value}</p>` : `<p>${startingLine}</p>`,
+    onUpdate: ({ editor }) => onChange?.(editor.getText()),
   });
-
+  // ✅ Keep editor in sync when `value` changes externally
+  useEffect(() => {
+    if (editor && value !== editor.getText()) {
+      editor.commands.setContent(
+        value ? `<p>${value}</p>` : `<p>${startingLine}</p>`
+      );
+    }
+  }, [value, editor, startingLine]);
   // Force rerender on editor state change to properly enable/disable Undo/Redo
   useEffect(() => {
     if (!editor) return;
@@ -121,6 +130,11 @@ const IncidentTxtBox = () => {
         </RichTextEditor>
       </Stack>
     </Card>
+     {error && (
+        <Text size="sm" c="red" mt="xs">
+          {error}
+        </Text>
+     )}
     </>
   );
 };

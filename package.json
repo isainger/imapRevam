@@ -1,10 +1,11 @@
 {
   "scripts": {
-    "start:frontend": "cd imapRevamFE && npm run dev",
-    "start:backend": "cd imapRevamBE && node server.js",
-    "dev": "concurrently \"npm run start:frontend\" \"npm run start:backend\""
+    "start:frontend": "cd imapRevamFE && npm run dev:force",
+    "start:backend": "cd imapRevamBE && npm run dev:force",
+    "dev": "concurrently -n \"frontend,backend\" -c \"bgBlue.bold,bgYellow.bold\" \"npm run start:frontend\" \"npm run start:backend\""
   },
   "devDependencies": {
-    "concurrently": "^9.2.0"
+    "concurrently": "^9.2.0",
+    "nodemon": "^3.1.10"
   }
 }

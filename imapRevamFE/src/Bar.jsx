@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useForm } from "@mantine/form";
 import groupedProductOptions from "./data/GroupedProductItems";
 import emailGroups from "./data/EmailGroups";
@@ -11,22 +11,20 @@ import ActionBtn from "./components/ActionBtn";
 import InputBtn from "./components/InputBtn";
 import DateTimeSelector from "./components/DateTimeSelector";
 import EmailTemplateLayout from "./EmailTemplateLayout";
-import {
-  TextInput,
-  Box,
-  Title,
-  Stack,
-  Radio,
-  Group,
-  Textarea,
-  Modal,
-  BackgroundImage,
-} from "@mantine/core";
+import { Box, Title, Group, Textarea, Modal, Switch } from "@mantine/core";
 import SearchableInput from "./components/SearchableInput";
+import {
+  fetchIncidentByNumber,
+  saveIncident,
+} from "./services/incidentOperations";
 
 const Bar = () => {
   const formTabs = ["General", "Publisher", "Advertiser", "Header Bidding"];
-  const statusGradientMap = {
+  const statusGradientMapNormal = {
+    "Not an Issue": {
+      gradient: "", // blue
+      iconClass: "",
+    },
     Suspected: {
       gradient: "#0056f0", // blue
       iconClass: "fa-solid fa-magnifying-glass",
@@ -44,49 +42,70 @@ const Bar = () => {
       iconClass: "fa-solid fa-square-check",
     },
   };
+  const statusGradientMapKnownIssue = {
+    Ongoing: {
+      gradient: "#e53e3e", // red
+      iconClass: "fa-solid fa-circle",
+    },
+    Resolved: {
+      gradient: "#ecc94b", // yellow
+      iconClass: "fa-solid fa-screwdriver-wrench",
+    },
+  };
+  const initial_values = {
+    departmentName: formTabs[0],
+    known_issue: false,
+    inputBox: {
+      inputNumber: "",
+      subject: "",
+      incidentLink: "",
+      performer: "",
+      revenueImpactDetails: "",
+    },
+    radio: {
+      inputIncident: "",
+      status: "",
+      remainingStatus: [],
+      incidentType: "",
+      revenueImpact: "",
+      nextUpdate: "",
+      workaround: "",
+    },
+    dropDown: {
+      reportedBy: null,
+      severity: null,
+      affectedProduct: null,
+      regionImpacted: null,
+      serviceImpacted: null,
+      notificationMails: [],
+      allEmailOptions: Object.entries(emailGroups).map(([key, emails]) => ({
+        group: key,
+        emails: [...new Set(emails)],
+      })),
+    },
+    dateTime: {
+      startTime: { local: null, utc: null },
+      discoveredTime: { local: null, utc: null },
+      nextUpdateTime: { local: null, utc: null },
+    },
+    textArea: {
+      incidentDetails: "",
+      statusUpdateDetails: "",
+      workaroundDetails: "",
+    },
+    statusUpdate: false,
+    modalOpen: false,
+  };
 
   const form = useForm({
-    initialValues: {
-      tabSelected: formTabs[0],
-      inputBox: {
-        inputNumber: "",
-        subject: "",
-        incidentLink: "",
-        performer: "",
-      },
-      radio: {
-        inputIncident: "",
-        status: "",
-        remainingStatus: [],
-        incidentType: "",
-        revenueImpact: "",
-      },
-      dropDown: {
-        reportedBy: "",
-        severity: "",
-        affectedProduct: "",
-        regionImpacted: "",
-        serviceImpacted: "",
-        notificationMails: [],
-        allEmailOptions: [],
-      },
-      dateTime: {
-        startTime: { local: null, utc: null },
-        discoveredTime: { local: null, utc: null },
-        nextUpdateTime: { local: null, utc: null },
-      },
-      modalOpen: false,
-    },
-
+    initialValues: initial_values,
     validate: {
       // InputBox validations
       inputBox: {
-        inputNumber: (value) =>
-          value.trim().length === 0
+        inputNumber: (value, values) =>
+          values.radio.inputIncident === "Yes" && value.trim().length === 0
             ? "Incident number is required"
-            : !/^\d+$/.test(value)
-            ? "Must be a number"
-            : null,
+            : null, // no numeric check anymore
         subject: (value) =>
           value.trim().length < 5
             ? "Subject must be at least 5 characters"
@@ -101,6 +120,10 @@ const Bar = () => {
           !/^[A-Za-z\s]+ \([A-Za-z0-9._%+-]+@taboola\.com\)$/.test(value)
             ? "Please select a valid name and a valid Taboola email"
             : null,
+        revenueImpactDetails: (value, values) =>
+          values.radio.revenueImpact === "Yes" && value.trim().length < 5
+            ? "Please provide revenue impact details (min 5 characters)"
+            : null,
       },
 
       // Radio validations
@@ -111,8 +134,11 @@ const Bar = () => {
           !value ? "Please select incident type" : null,
         revenueImpact: (value) =>
           !value ? "Please select revenue impact" : null,
+        nextUpdate: (value) =>
+          !value ? "Please select next availability " : null,
+        workaround: (value) =>
+          !value ? "Please select workaround availability " : null,
       },
-
       // Dropdown validations
       dropDown: {
         reportedBy: (value) => (!value ? "Reported by is required" : null),
@@ -132,26 +158,48 @@ const Bar = () => {
         startTime: (value) => (!value.local ? "Start time is required" : null),
         discoveredTime: (value) =>
           !value.local ? "Discovered time is required" : null,
-        nextUpdateTime: (value) =>
-          !value.local ? "Next update time is required" : null,
+        nextUpdateTime: (value, values) =>
+          values.radio.nextUpdate === "Yes" && !value.local
+            ? "Next update time is required"
+            : null,
+      },
+      textArea: {
+        incidentDetails: (value) =>
+          value.trim().length < 5
+            ? "Incident Details must be at least 5 characters"
+            : null,
+        statusUpdateDetails: (value, values) =>
+          values.statusUpdate === true && value.trim().length < 5
+            ? "Please provide status update (min 5 characters)"
+            : null,
+        workaroundDetails: (value, values) =>
+          values.radio.workaround === "Yes" && value.trim().length < 5
+            ? "Please provide workaround update (min 5 characters)"
+            : null,
       },
     },
   });
+  const statusGradientMap = form.values.known_issue
+    ? statusGradientMapKnownIssue
+    : statusGradientMapNormal;
 
   const handleChange = (field, value) => {
     if (field === "radio.status") {
+      // if (.values.radio.remainingStatus.length === 0) {
       const statusKeys = Object.keys(statusGradientMap);
       const index = statusKeys.indexOf(value);
       if (index !== -1) {
-        const remainingStatusValues = statusKeys.slice(index).map((item) => ({
-          statusName: item,
-          color: statusGradientMap[item].gradient,
-          icons: statusGradientMap[item].iconClass,
-        }));
-        form.setFieldValue("radio.status", value);
+        const remainingStatusValues = statusKeys
+          .slice(index)
+          .filter((item) => item !== "Not an Issue")
+          .map((item) => ({
+            statusName: item,
+            color: statusGradientMap[item].gradient,
+            icons: statusGradientMap[item].iconClass,
+          }));
         form.setFieldValue("radio.remainingStatus", remainingStatusValues);
-        return;
       }
+      // }
     }
     form.setFieldValue(field, value);
   };
@@ -163,50 +211,188 @@ const Bar = () => {
 
     form.setFieldValue(`dateTime.${fieldKey}`, {
       local: fullDate,
-      utc: fullDate.toISOString(),
+      utc: fullDate.toISOString(), // keep UTC consistent
     });
   };
 
-  useEffect(() => {
-    const mergedEmails = Object.entries(emailGroups).map(([key, emails]) => ({
-      group: key,
-      emails: [...new Set(emails)], // dedupe per group
-    }));
-    form.setFieldValue("dropDown.allEmailOptions", mergedEmails);
-  }, []);
+  const stripHtml = (html) => {
+    if (!html) return "";
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  };
 
   useEffect(() => {
     const selectedItem = form.values.dropDown.affectedProduct;
+    if (!selectedItem) return;
 
-    let selectedGroup = "";
+    const group = groupedProductOptions.find((g) =>
+      g.items.includes(selectedItem)
+    )?.group;
 
-    // Find the group that includes the selected item
-    for (let group of groupedProductOptions) {
-      if (group.items.includes(selectedItem)) {
-        selectedGroup = group.group;
-        break;
-      }
+    const emailOption = form.values.dropDown.allEmailOptions.find(
+      (item) => item.group === group
+    );
+
+    if (emailOption) {
+      form.setFieldValue("dropDown.notificationMails", emailOption.emails);
     }
-    form.values.dropDown.allEmailOptions.map((item) => {
-      if (selectedGroup === item.group) {
-        form.setFieldValue("dropDown.notificationMails", item.emails);
-        return;
-      }
-    });
   }, [form.values.dropDown.affectedProduct]);
 
-  useEffect(() => {
-    form.setFieldValue("dropDown.affectedProduct", null);
-    form.setFieldValue("dropDown.notificationMails", []);
-  }, [form.values.tabSelected]);
+  function extractIncidentNumber(url) {
+    const match = url.match(/\/Case\/([a-zA-Z0-9]+)\//);
+    return match ? match[1] : null;
+  }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    form.validate();
+    const validate = form.validate();
+    if (validate.hasErrors) {
+      console.log("❌ Validation failed:", validate.errors);
+      return;
+    }
+    const incidentNumber = extractIncidentNumber(
+      form.values.inputBox.incidentLink
+    );
+
+    if (form.values.radio.inputIncident === "No") {
+      const existingIncident = await fetchIncidentByNumber(incidentNumber);
+      if (existingIncident?.length > 0) {
+        alert(
+          "This incident number already exists! Please fetch it first to update."
+        );
+        return;
+      }
+    }
+
+    const payload = {
+      incident_number: incidentNumber,
+      known_issue: form.values.known_issue,
+      subject: form.values.inputBox.subject,
+      incident_link: form.values.inputBox.incidentLink,
+      performer: form.values.inputBox.performer,
+      departmentName: form.values.departmentName,
+      status: form.values.radio.status,
+      remaining_status: JSON.stringify(form.values.radio.remainingStatus), // ✅ save
+      incident_type: form.values.radio.incidentType,
+      revenue_impact: form.values.radio.revenueImpact,
+      next_update: form.values.radio.nextUpdate,
+      workaround: form.values.radio.workaround,
+      reported_by: form.values.dropDown.reportedBy,
+      severity: form.values.dropDown.severity,
+      affected_product: form.values.dropDown.affectedProduct,
+      region_impacted: form.values.dropDown.regionImpacted,
+      service_impacted: form.values.dropDown.serviceImpacted,
+      notification_mails: form.values.dropDown.notificationMails,
+      start_time: form.values.dateTime.startTime.utc,
+      discovered_time: form.values.dateTime.discoveredTime.utc,
+      next_update_time: form.values.dateTime.nextUpdateTime.utc,
+      incident_details: stripHtml(form.values.textArea.incidentDetails),
+    };
+    // ✅ add only if user provided revenue impact details
+    if (form.values.inputBox.revenueImpactDetails?.trim()) {
+      payload.revenue_impact_details =
+        form.values.inputBox.revenueImpactDetails;
+    }
+
+    // ✅ add only if user provided status update details
+    if (form.values.textArea.statusUpdateDetails?.trim()) {
+      payload.status_update_details = stripHtml(
+        form.values.textArea.statusUpdateDetails
+      );
+    }
+
+    // ✅ add only if user provided workaround details
+    if (form.values.textArea.workaroundDetails?.trim()) {
+      payload.workaround_details = stripHtml(
+        form.values.textArea.workaroundDetails
+      );
+    }
+    try {
+      const response = await saveIncident(payload);
+      console.log("✅ Incident saved:", response);
+      form.reset();
+    } catch (error) {
+      console.log("✅ Incident saved:", response);
+    }
   };
 
-  const searchIncident = () => {
+  const searchIncident = async (e) => {
     e.preventDefault();
+    try {
+      const incidentNumber = form.values.inputBox.inputNumber;
+      console.log("Searching for incident:", incidentNumber);
+
+      const response = await fetchIncidentByNumber(incidentNumber);
+      console.log("Incident Data:", response);
+      if (response && response.length > 0) {
+        const incident = response[0];
+        form.setValues({
+          ...form.values,
+          departmentName: incident.departmentName,
+          known_issue: incident.known_issue,
+          inputBox: {
+            ...form.values.inputBox,
+            inputNumber: incident.incident_number || "",
+            subject: incident.subject || "",
+            incidentLink: incident.incident_link || "",
+            performer: incident.performer || "",
+            revenueImpactDetails: incident.revenue_impact_details || "",
+          },
+          radio: {
+            ...form.values.radio,
+            status: incident.status || "",
+            remainingStatus: Array.isArray(incident.remaining_status)
+              ? incident.remaining_status
+              : JSON.parse(incident.remaining_status || "[]"),
+            incidentType: incident.incident_type || "",
+            revenueImpact: incident.revenue_impact || "",
+            nextUpdate: incident.next_update || "",
+            workaround: incident.workaround || ""
+          },
+          dropDown: {
+            ...form.values.dropDown,
+            reportedBy: incident.reported_by || "",
+            severity: incident.severity || "",
+            affectedProduct: incident.affected_product || "",
+            regionImpacted: incident.region_impacted || "",
+            serviceImpacted: incident.service_impacted || "",
+            notificationMails: Array.isArray(incident.notification_mails)
+              ? incident.notification_mails
+              : JSON.parse(incident.notification_mails || "[]"),
+          },
+          dateTime: {
+            ...form.values.dateTime,
+            startTime: {
+              local: incident.start_time ? new Date(incident.start_time) : null,
+              utc: incident.start_time || "",
+            },
+            discoveredTime: {
+              local: incident.discovered_time
+                ? new Date(incident.discovered_time)
+                : null,
+              utc: incident.discovered_time || "",
+            },
+            nextUpdateTime: {
+              local: incident.next_update_time
+                ? new Date(incident.next_update_time)
+                : null,
+              utc: incident.next_update_time || "",
+            },
+          },
+          textArea: {
+            ...form.values.textArea,
+            incidentDetails: incident.incident_details || "",
+            statusUpdateDetails: incident.status_update_details || "",
+            workaroundDetails: incident.workaround_details || ""
+          },
+        });
+      } else {
+        console.log("⚠️ No incident found with this number");
+      }
+    } catch (error) {
+      console.error("❌ Error searching incident:", error);
+    }
   };
 
   return (
@@ -221,25 +407,44 @@ const Bar = () => {
           </Title>
         </div>
       </Box>
+      <Box className="w-full flex justify-center items-center p-4">
+        <Switch
+          label="Known Issue?"
+          checked={form.values.known_issue}
+          onChange={(event) => {
+            handleChange("known_issue", event.currentTarget.checked);
+            form.setFieldValue("radio.status", "");
+            form.setFieldValue("radio.remainingStatus", []);
+          }}
+          size="md"
+          color="purple"
+          onLabel="Yes"
+          offLabel="No"
+        />
+      </Box>
       <div className="flex w-full gap-4 justify-center items-center p-4 border-b-2 border-b-gray-100">
         {formTabs.map((item, index) => (
           <div
             key={index}
             className="flex flex-col flex-[1_0_auto] justify-center w-auto items-center cursor-pointer"
-            onClick={() => handleChange("tabSelected", item)}
+            onClick={() => {
+              handleChange("departmentName", item);
+              form.setFieldValue("dropDown.affectedProduct", null);
+              form.setFieldValue("dropDown.notificationMails", []);
+            }}
           >
             <div
               className={`w-full min-h-2 relative rounded-[3px] 
-    ${form.values.tabSelected === item ? "bg-[#7030a0]" : "bg-[#ba99a5]"}  
+    ${form.values.departmentName === item ? "bg-[#7030a0]" : "bg-[#ba99a5]"}  
     ${
-      form.values.tabSelected === item
+      form.values.departmentName === item
         ? 'after:border-t-[#7030a0] after:absolute after:w-0 after:h-0 after:border-l-[12px] after:border-l-transparent after:border-r-[12px] after:border-r-transparent after:border-t-[13px] after:content-[""] after:left-1/2 after:-translate-x-1/2'
         : ""
     }`}
             ></div>
             <div
               className={`${
-                form.values.tabSelected === item
+                form.values.departmentName === item
                   ? "text-[#7030a0]"
                   : "text-[#ba99a5]"
               }`}
@@ -271,6 +476,7 @@ const Bar = () => {
               width="auto"
               placeholder="Enter Incident Number"
               isBtn={true}
+              onClick={searchIncident}
               inputProps={{
                 ...form.getInputProps("inputBox.inputNumber"), // keeps value, error, onBlur, etc.
                 onChange: (e) =>
@@ -291,7 +497,13 @@ const Bar = () => {
             }}
           />
 
-          <IncidentTxtBox />
+          <IncidentTxtBox
+            inputProps={{
+              ...form.getInputProps("textArea.incidentDetails"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("textArea.incidentDetails", val), // replace default onChange
+            }}
+            startingLine="Incident Details:"
+          />
 
           {/* Status Radio Group */}
           <RadioBtn
@@ -302,6 +514,49 @@ const Bar = () => {
               onChange: (val) => handleChange("radio.status", val), // replace default onChange
             }}
           />
+          <div className="flex justify-center flex-col w-full items-start">
+            <div
+              className="w-auto flex gap-2 items-center"
+              onClick={() =>
+                form.setFieldValue("statusUpdate", !form.values.statusUpdate)
+              }
+            >
+              {form.values.statusUpdate ? (
+                <i className="fa-solid fa-circle-minus"></i>
+              ) : (
+                <i className="fa-solid fa-circle-plus"></i>
+              )}
+              <p>Add Status Update</p>
+            </div>
+            {form.values.statusUpdate && (
+              <IncidentTxtBox
+                inputProps={{
+                  ...form.getInputProps("textArea.statusUpdateDetails"), // keeps value, error, onBlur, etc.
+                  onChange: (val) =>
+                    handleChange("textArea.statusUpdateDetails", val), // replace default onChange
+                }}
+                startingLine="Status Update:"
+              />
+            )}
+          </div>
+          <RadioBtn
+            data={["Yes", "No"]}
+            radioHead="Workaround Provided"
+            inputProps={{
+              ...form.getInputProps("radio.workaround"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("radio.workaround", val), // replace default onChange
+            }}
+          />
+          {form.values.radio.workaround === "Yes" && (
+            <IncidentTxtBox
+              inputProps={{
+                ...form.getInputProps("textArea.workaroundDetails"), // keeps value, error, onBlur, etc.
+                onChange: (val) =>
+                  handleChange("textArea.workaroundDetails", val), // replace default onChange
+              }}
+              startingLine="Workaround Details:"
+            />
+          )}
           <DropdownBtn
             title="Reported By: "
             data={["Product/RnD", "PS/Support", "Customer", "Business"]}
@@ -322,10 +577,10 @@ const Bar = () => {
             title="Affected Product: "
             data={
               groupedProductOptions.find(
-                (item) => item.group === form.values.tabSelected
+                (item) => item.group === form.values.departmentName
               )
                 ? groupedProductOptions.find(
-                    (item) => item.group === form.values.tabSelected
+                    (item) => item.group === form.values.departmentName
                   ).items
                 : groupedProductOptions
             }
@@ -390,6 +645,10 @@ const Bar = () => {
                 w="100%"
                 minRows={3}
                 styles={{ input: { border: "2px solid #E5E7EB" } }}
+                {...form.getInputProps("inputBox.revenueImpactDetails")}
+                onChange={(e) =>
+                  handleChange("inputBox.revenueImpactDetails", e.target.value)
+                }
               />
             </Group>
           )}
@@ -442,14 +701,24 @@ const Bar = () => {
             data={performers}
             inputProps={form.getInputProps("inputBox.performer")}
           />
-          <DateTimeSelector
-            value={form.values.dateTime.nextUpdateTime.local}
-            onChange={(val) => handleDateTimeChange("nextUpdateTime", val)}
-            utcValue={form.values.dateTime.nextUpdateTime.utc}
-            label="Next Update Time (UTC) :"
-            checkBox={true}
-            inputProps={form.getInputProps("dateTime.nextUpdateTime")}
+          <RadioBtn
+            data={["Yes", "No"]}
+            radioHead="Update Available"
+            inputProps={{
+              ...form.getInputProps("radio.nextUpdate"), // keeps value, error, onBlur, etc.
+              onChange: (val) => handleChange("radio.nextUpdate", val), // replace default onChange
+            }}
           />
+          {form.values.radio.nextUpdate === "Yes" && (
+            <DateTimeSelector
+              value={form.values.dateTime.nextUpdateTime.local}
+              onChange={(val) => handleDateTimeChange("nextUpdateTime", val)}
+              utcValue={form.values.dateTime.nextUpdateTime.utc}
+              label="Next Update Time (UTC) :"
+              checkBox={true}
+              inputProps={form.getInputProps("dateTime.nextUpdateTime")}
+            />
+          )}
           <Box
             w="100%"
             display="flex"

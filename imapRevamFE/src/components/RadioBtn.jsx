@@ -2,7 +2,7 @@ import React from 'react'
 import {Title, Stack, Radio, Group } from "@mantine/core";
 
 const RadioBtn = (props) => {
-    const {data ,onChange, radioHead, horizontal,inputProps} = props;
+    const {data , radioHead, horizontal,inputProps} = props;
     const Wrapper = horizontal ? Group : Stack;
 
   return (

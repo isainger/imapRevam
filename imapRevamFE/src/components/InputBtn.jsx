@@ -3,7 +3,7 @@ import React from 'react'
 import ActionBtn from './ActionBtn'
 
 const InputBtn = (props) => {
-    const {horizontalLayout,title, width, placeholder,isBtn, inputProps} = props
+    const {horizontalLayout,title, width, placeholder,isBtn, inputProps, onClick} = props
     const Layout = horizontalLayout ? Group : Stack
   return (
     <Layout w={width}>
@@ -18,6 +18,7 @@ const InputBtn = (props) => {
         <ActionBtn
   btnText="Submit"
   fullWidth={false}
+  onClick={onClick}
 />
 }
   </Layout>

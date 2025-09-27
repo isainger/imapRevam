@@ -2,9 +2,6 @@ import React, { useEffect } from 'react'
 
 const EmailTemplateLayout = (props) => {
   const {data} = props
-  useEffect(()=>{
-    console.log(data)
-  },[data])
   return (
     <div className='flex justify-center items-center flex-col w-full h-full'>
        <div className='w-full h-fit flex justify-center items-center'>
