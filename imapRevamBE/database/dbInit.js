@@ -1,10 +1,11 @@
-const pool = require('./db'); // now pool, not db
+const pool = require("./db"); // now pool, not db
 
 async function initDB() {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS incidents (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      known_issue TINYINT(1) DEFAULT 0,
+      display_id INT,
+      known_issue VARCHAR(10),
       incident_number VARCHAR(100) NOT NULL,
       subject VARCHAR(1000) NOT NULL,
       incident_link TEXT NOT NULL,
@@ -22,6 +23,8 @@ async function initDB() {
       service_impacted VARCHAR(100),
       notification_mails JSON,
       start_time TIMESTAMP NULL DEFAULT NULL,
+      resolved_time TIMESTAMP NULL DEFAULT NULL,
+      resolved_with_rca_time TIMESTAMP NULL DEFAULT NULL,
       discovered_time TIMESTAMP NULL DEFAULT NULL,
       next_update VARCHAR(10),
       next_update_time TIMESTAMP NULL DEFAULT NULL,
@@ -29,9 +32,14 @@ async function initDB() {
       status_update_details TEXT,
       workaround VARCHAR(10),
       workaround_details TEXT,
+      resolved_details TEXT,
+      resolved_with_rca_details TEXT,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      KEY idx_incident_number (incident_number)
+      created_by INT NULL,
+      updated_by INT NULL,
+      KEY idx_incident_number (incident_number),
+      KEY idx_display_id (display_id)
     ) ENGINE=InnoDB;
   `;
 

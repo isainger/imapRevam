@@ -8,82 +8,362 @@ body,
 #root {
   min-height: 100vh;
   min-width: 100vw;
-  font-family: "Cabin", sans-serif;
-  font-optical-sizing: auto;
-  color: #7030a0;
+  font-size: 13px;
+  color: #3C4449;
+  background: #f0f4f8;
+  overflow: hidden;
+ font-family: "Poppins", sans-serif !important
 }
 
-#bgImage {
-  background: url("assets/bg.jpg") no-repeat center center / cover;
-  background-attachment: fixed;
-  background-color: rgba(114, 8, 139, 1);
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  box-sizing: border-box;
-  transform: translateZ(0);
-  outline: none;
-  opacity: 1;
-  top: 0;
+.banner{
+  background: #0056f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  color: white;
 }
+
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+
 .custom-input {
   font-size: 16px;
-  color: rgb(51, 51, 51);
-  border: 1px solid rgba(144, 96, 181, 1);
+  border: 1px solid #6badef;
   border-radius: 4px;
   word-break: normal;
-  background: rgba(255, 255, 255, 1);
+  background: transparent;
   font-family: Arial, sans-serif;
   transition: 0.3s;
   padding: 8px 12px;
   box-sizing: border-box;
 }
 .custom-input:focus {
-  border-color: #029d69;
-  box-shadow: 0px 0px 2px 0px #029d69;
+  border-color: #155dfc;
+  box-shadow: 0px 0px 2px 0px #013c7b;
   outline: none;
 }
-.btnStyle {
-  background:#32035e;
-  opacity: 1;
-  padding: 10px 40px;
-  border-radius: 100px;
-  font-size: 1rem;
+
+/* ==================== ✅ ACTION BUTTON ==================== */
+.Btn {
+  position: relative;
   display: flex;
-  transition: transform 0.25s cubic-bezier(0.33, 0.04, 0.63, 0.93);
-  transform: translate3d(0, 0, 0);
-  text-align: center;
-  border: 1px solid transparent;
-  transition: transform 0.25s cubic-bezier(0.33, 0.04, 0.63, 0.93),
-    -webkit-transform 0.25s cubic-bezier(0.33, 0.04, 0.63, 0.93),
-    -o-transform 0.25s cubic-bezier(0.33, 0.04, 0.63, 0.93);
-  -webkit-transform: translate3d(0, 0, 0);
-  transform: translate3d(0, 0, 0);
-}
-.btnStyle:hover {
-  -webkit-transform: scale3d(1.03, 1.03, 1) translate3d(0, 0, 0)
-    perspective(500px);
-  transform: scale3d(1.03, 1.03, 1) translate3d(0, 0, 0) perspective(500px);
-  background: rgba(112, 48, 160, 1);
-}
-.btnStyle:focus {
-  -webkit-transform: scale3d(1.05, 1.05, 1) translate3d(0, 0, 0)
-    perspective(500px);
-  transform: scale3d(1.05, 1.05, 1) translate3d(0, 0, 0) perspective(500px);
+  justify-content: center;
+  align-items: center;
+  border-radius: 5px;
+  background: #0056f0;
+  font-family: "Montserrat", sans-serif;
+  box-shadow: 0px 6px 24px 0px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  cursor: pointer;
+  border: none;
 }
 
-.clip-arrow-right {
-  clip-path:polygon( 0% 0%,  90% 0%,  100% 50%,  90% 100%,  0% 100%,  10% 50%  );
-  margin-left: -46px;
+.Btn:after {
+  content: " ";
+  color: black;
+  width: 0%;
+  height: 100%;
+  background: #00f0d6;
+  position: absolute;
+  transition: all 0.4s ease-in-out;
+  right: 0;
 }
-.clip-arrow-first{
-  clip-path: polygon(0 0, 90% 0, 100% 50%, 90% 100%, 0 100%)
+
+.Btn:hover::after {
+  left: 0;
+  width: 100%;
 }
-.clip-arrow-right:first-child {
-  margin-left: 0; /* first one stays aligned */
+
+.Btn span {
+  padding: 10px 20px;
+  color: #fff;
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  z-index: 20;
+  transition: all 0.3s ease-in-out;
 }
-.material-symbols-outlined {
-  font-size: xx-large;
-  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+
+.Btn:hover span {
+  animation: scaleUp 0.3s ease-in-out;
+  color: black;
+}
+
+@keyframes scaleUp {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* ==================== ✅ DEPARTMENT CARD (FINAL FIXED) ==================== */
+
+.card {
+  width: 250px;
+  height: clamp(110px, 18vh, 200px);
+  background: #002852;
+  position: relative;
+  display: grid;
+  place-content: center;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.5s ease-in-out;
+}
+
+.border {
+  position: absolute;
+  inset: 0px;
+  border: 2px solid #fff;
+  opacity: 0;
+  transform: rotate(10deg);
+  transition: all 0.5s ease-in-out;
+}
+
+.bottom-text {
+  position: absolute;
+  left: 50%;
+  bottom: 13px;
+  transform: translateX(-50%);
+  font-size: 6px;
+  text-transform: uppercase;
+  padding: 0px 5px 0px 8px;
+  color: #fff;
+  background: #002852;
+  opacity: 0;
+  letter-spacing: 7px;
+  transition: all 0.5s ease-in-out;
+}
+
+.content {
+  transition: all 0.5s ease-in-out;
+}
+
+.content .logo {
+  height: 35px;
+  position: relative;
+  width: 33px;
+  overflow: hidden;
+  transition: width 0.8s ease-in-out;
+  margin: 0 auto;                 /* ✅ Keeps center aligned */
+  display: flex;                  /* ✅ Prevents right shift */
+  justify-content: center;        /* ✅ Keeps text centered */
+}
+
+.content .logo .logo1 {
+  height: 40px;
+  min-width: 35px;
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+}
+.content .logo .logo2 {
+  height: 40px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  opacity: 0;                     /* ✅ hidden by default */
+  transition: opacity 0.3s ease;
+}
+.content .logo .trail {
+  position: absolute;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  opacity: 0;
+}
+
+.content .logo-bottom-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin-top: 30px;
+  color: #fff;
+  padding-left: 8px;
+  font-size: 11px;
+  opacity: 0;
+  letter-spacing: none;
+  transition: all 0.5s ease-in-out 0.5s;
+}
+
+.card:hover {
+  border-radius: 0;
+  transform: scale(1.1);
+}
+
+.card:hover .logo {
+  width: 140px;
+  animation: opacity 1s ease-in-out;
+}
+
+.card:hover .border {
+  inset: 15px;
+  opacity: 1;
+  transform: rotate(0);
+}
+
+.card:hover .bottom-text {
+  letter-spacing: 3px;
+  opacity: 1;
+  transform: translateX(-50%);
+}
+
+.card:hover .content .logo-bottom-text {
+  opacity: 1;
+  letter-spacing: 9.5px;
+}
+
+.card:hover .trail {
+  animation: trail 1s ease-in-out;
+}
+.card:hover .logo .logo1 {
+  opacity: 0;                    /* ✅ hide initials */
+}
+.card:hover .logo .logo2 {
+  opacity: 1;                    /* ✅ show full name */
+}
+/* ✅ SELECTED STATE */
+.card.selected {
+  outline: 2px solid #22c55e; /* green */
+  outline-offset: 4px;
+}
+
+/* ✅ TICK OVERLAY */
+.tick-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
+}
+
+.tick-circle {
+  width: 28px;
+  height: 28px;
+  background: #00f0d6;
+  color: white;
+  font-size: 18px;
+  font-weight: 900;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
+}
+
+@keyframes opacity {
+  0% {
+    border-right: 1px solid transparent;
+  }
+
+  10% {
+    border-right: 1px solid #fff;
+  }
+
+  80% {
+    border-right: 1px solid #fff;
+  }
+
+  100% {
+    border-right: 1px solid transparent;
+  }
+}
+
+@keyframes trail {
+  0% {
+       background: #0056f0;
+
+    opacity: 0;
+  }
+
+  30% {
+       background: #0056f0;
+
+    opacity: 1;
+  }
+
+  70% {
+    background: #0056f0;
+    opacity: 1;
+  }
+
+  95% {
+        background: #0056f0;
+
+    opacity: 0;
+  }
+}
+.info-box {
+  padding: 1rem;
+  border: 2px solid #d3542b; /* orange tone */
+  background: white;
+  font-family: "Segoe UI", sans-serif;
+}
+.info-box h3 {
+  color: #c9471f;
+  font-size: 16px;
+  font-weight: 700;
+}
+.info-box p {
+  font-size: 14px;
+  color: #555;
+}
+.left .info-box{
+   border-top-left-radius: 40px; 
+    border-bottom-left-radius: 40px;       
+}
+.right .info-box{
+   border-top-right-radius: 40px; 
+    border-bottom-right-radius: 40px;       
+}
+.left{
+  display: flex;
+  flex-direction: row-reverse;
+}
+.line {
+  width: 50px;
+  border-bottom: 3px dashed #666;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #555;
+  border-radius: 50%;
+}
+
+@keyframes scaleIn {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out;
 }

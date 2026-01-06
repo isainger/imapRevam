@@ -16,6 +16,7 @@
     "@mantine/dates": "^8.2.2",
     "@mantine/form": "^8.2.2",
     "@mantine/hooks": "^8.2.2",
+    "@mantine/notifications": "^8.2.3",
     "@mantine/styles": "^6.0.22",
     "@mantine/tiptap": "^8.2.2",
     "@react-email/components": "^0.5.3",
@@ -33,6 +34,7 @@
     "dotenv": "^17.2.1",
     "html-to-image": "^1.11.13",
     "react": "^19.1.1",
+    "react-countup": "^6.5.3",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.7.1",
     "tailwindcss": "^4.1.11"
