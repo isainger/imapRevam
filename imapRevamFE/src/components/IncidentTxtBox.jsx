@@ -9,10 +9,15 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import { Superscript } from "@tiptap/extension-superscript";
 import { Subscript } from "@tiptap/extension-subscript";
+import { improveWithAI } from "../services/incidentOperations";
 
-const IncidentTxtBox = ({ inputProps, startingLine }) => {
+const IncidentTxtBox = ({ inputProps, startingLine, context }) => {
   const { value, onChange, error, ...rest } = inputProps;
   const [version, setVersion] = useState(0);
+
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState("");
 
   const editor = useEditor({
     extensions: [
@@ -23,14 +28,14 @@ const IncidentTxtBox = ({ inputProps, startingLine }) => {
       Color,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
-    content: value ? `<p>${value}</p>` : `<p>${startingLine}</p>`,
-    onUpdate: ({ editor }) => onChange?.(editor.getText()),
+    content: value || `<p>${startingLine}</p>`,
+    onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
   });
   // ✅ Keep editor in sync when `value` changes externally
   useEffect(() => {
     if (!editor) return;
 
-    const html = value ? `<p>${value}</p>` : `<p>${startingLine}</p>`;
+    const html = value || `<p>${startingLine}</p>`;
 
     // Only set content if different AND editor is not focused
     if (editor.getHTML() !== html && !editor.isFocused) {
@@ -53,6 +58,53 @@ const IncidentTxtBox = ({ inputProps, startingLine }) => {
   }, [editor]);
 
   if (!editor) return null;
+
+  const extractTextFromHtml = (html) => {
+    if (!html) return "";
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  };
+
+  // const getAiInstruction = (context) => {
+  //   switch (context) {
+  //     case "incident_details":
+  //       return "Rewrite clearly and professionally. Describe what happened, impact, and affected systems.";
+  //     case "status_update":
+  //       return "Rewrite as a short, clear status update with timeline awareness.";
+  //     case "resolution":
+  //       return "Rewrite confidently. Focus on final resolution and confirmation of fix.";
+  //     case "workaround":
+  //       return "Rewrite as clear step-by-step workaround instructions.";
+  //     case "resolutionRca":
+  //       return "Rewrite analytically. Explain cause and prevention.";
+  //     default:
+  //       return "Rewrite clearly and professionally.";
+  //   }
+  // };
+
+  const handleImproveWithAI = async () => {
+    try {
+      setAiLoading(true);
+
+      const improvedHtml = await improveWithAI({
+        html: value || `<p>${startingLine}</p>`,
+        context,
+      });
+
+      setAiSuggestion(improvedHtml);
+      setAiOpen(true);
+    } catch (err) {
+      console.error("AI error:", err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const applyAiSuggestion = () => {
+    onChange?.(aiSuggestion); // ✅ already valid HTML
+    setAiOpen(false);
+  };
 
   return (
     <>
@@ -85,6 +137,81 @@ const IncidentTxtBox = ({ inputProps, startingLine }) => {
           minHeight: 220, // 🔥 guarantees editor space
         }}
       >
+        <div
+          style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}
+        >
+          <button
+            type="button"
+            onClick={handleImproveWithAI}
+            style={{
+              fontSize: "16px",
+              color: "#2563eb",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              paddingRight: "1rem",
+              paddingBottom: "0.5rem",
+            }}
+          >
+            ✨ Improve with AI
+          </button>
+        </div>
+        {aiOpen && (
+          <div
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: 8,
+              padding: 12,
+              margin: "8px",
+              background: "#f9fafb",
+            }}
+          >
+            <Text size="sm" fw={600} mb={6}>
+              AI Suggested Improvement
+            </Text>
+
+            <div
+              style={{
+                fontSize: 16,
+                color: "#111827",
+                marginBottom: 10,
+              }}
+              dangerouslySetInnerHTML={{ __html: aiSuggestion }}
+            />
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                onClick={applyAiSuggestion}
+                style={{
+                  padding: "6px 12px",
+                  background: "#2563eb",
+                  color: "white",
+                  borderRadius: 6,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Apply
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAiOpen(false)}
+                style={{
+                  padding: "6px 12px",
+                  background: "#e5e7eb",
+                  borderRadius: 6,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <Stack>
           <RichTextEditor editor={editor} radius="md">
             <RichTextEditor.Toolbar bg="transparent">

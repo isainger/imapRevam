@@ -115,7 +115,7 @@ body,
   transition: all 0.5s ease-in-out;
 }
 
-.border {
+.card-border {
   position: absolute;
   inset: 0px;
   border: 2px solid #fff;

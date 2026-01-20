@@ -65,3 +65,34 @@ export const saveIncident = async (payload) => {
     throw error;
   }
 };
+
+export const improveWithAI = async ({ html, context }) => {
+  try {
+    const response = await apiConnector(
+      "POST",
+      endpoints.AI_IMPROVE_API,
+      { html, context },
+      { timeout: 15000 }
+    );
+
+    return response.data.html;
+  } catch (error) {
+    console.error("❌ AI Improve failed:", error);
+    throw error;
+  }
+};
+export const sendDepartmentChangeEmail = async (payload) => {
+  try {
+     const response = await apiConnector(
+    "POST",
+    endpoints.DEPARTMENT_CHANGE_EMAIL_API,
+    payload,
+    { timeout: 15000 }
+  );
+  return response.data;
+  } catch (error) {
+    console.error("❌ Error Sending Email:", error);
+    throw error;
+  }
+};
+

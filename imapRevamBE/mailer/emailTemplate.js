@@ -1,6 +1,7 @@
 const React = require("react");
 const flowImages = require("./statusFlow"); // <-- correct import
 const { formatDate } = require("../utils/formatDate");
+const bannerFlow = require("./bannerFlow");
 
 /* STATUS COLOR MAP (unchanged) */
 const COLOR_MAP = {
@@ -51,6 +52,16 @@ const EmailTemplate = ({ data }) => {
       imageSrc = images[knownIssue] || images[0];
     }
   }
+  let bannerImageSrc = null;
+
+  if (currentStatus) {
+    const key = `Banner|${currentStatus}`;
+    const images = bannerFlow[key];
+    if (images) {
+      bannerImageSrc = images[0];
+    }
+  }
+  // console.log(bannerImageSrc);
 
   // const BASE_URL = process.env.PUBLIC_BASE_URL;
 
@@ -64,58 +75,63 @@ const EmailTemplate = ({ data }) => {
   const history = Array.isArray(data.history) ? data.history : [];
 
   // Latest update comes ONLY from submitted form
-  const latestStatusUpdate = data.status_update_details?.trim() || null;
-
+  const latestStatusUpdate =
+    typeof data.status_update_details === "string"
+      ? data.status_update_details.trim()
+      : null;
   // Previous updates come ONLY from DB
   const previousStatusUpdates = [];
-  let lastSeen = null;
 
   for (const h of history) {
     const text = (h.status_update_details || "").trim();
+    const OldStatus = normalizeForKey(h.status || "");
+    const currentStatus = normalizeForKey(data.status);
 
     if (!text) continue;
 
+    if (OldStatus !== currentStatus) continue;
+
     // skip duplicates
-    if (text === lastSeen) continue;
+    if (latestStatusUpdate && text === latestStatusUpdate) continue;
 
     previousStatusUpdates.push({
-  text,
-  updatedAt: h.updated_at,
-});
-    lastSeen = text;
+      text,
+      updatedAt: h.updated_at,
+    });
   }
-const injectUpdateTime = (text, updatedAt) => {
-  if (!text) return "";
+  const injectUpdateTime = (text, updatedAt) => {
+    if (!text || !updatedAt) return text || "";
 
-  // avoid double processing
-  if (/\[.*?\]/.test(text)) return text;
+    // prevent double injection
+    if (/\d{2}\s[A-Za-z]{3}\s\d{4}\s\d{2}:\d{2}/.test(text)) {
+      return text;
+    }
 
-  if (!text.startsWith("Status Update:")) return text;
+    const date = new Date(updatedAt);
 
-  const date = new Date(updatedAt);
+    const formatted = date.toLocaleString("en-GB", {
+      timeZone: "UTC",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
 
-  const formatted = date.toLocaleString("en-GB", {
-    timeZone: "UTC",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+    // Remove any leading HTML wrappers
+    const cleaned = text.replace(/^<[^>]+>/, "").replace(/<\/[^>]+>$/, "");
 
-  const clean = text.replace(/^Status Update:\s*/, "");
-
-  return `Status Update : ${formatted} - ${clean}`;
-};
-
+    return `Status Update : ${formatted} - ${cleaned}`;
+  };
 
   /* STATUS BADGE COLOR */
   const normalized = normalizeForKey(currentStatus);
-  const cfg = COLOR_MAP[normalized] || { color: "#6B7280",
+  const cfg = COLOR_MAP[normalized] || {
+    color: "#6B7280",
     bgColor: "#E5E7EB",
-    borderColor: "#D1D5DB"
-  }
+    borderColor: "#D1D5DB",
+  };
 
   return React.createElement(
     "div",
@@ -127,107 +143,140 @@ const injectUpdateTime = (text, updatedAt) => {
         backgroundColor: "#FFFFFF",
         fontFamily: '"Poppins", Arial, sans-serif',
         colorScheme: "light",
-      supportedColorSchemes: "light",
+        supportedColorSchemes: "light",
       },
     },
 
-    
-
     /* HEADER */
-    React.createElement(
-      "table",
-      {
-        style: {
-          width: "100%",
-          background: "linear-gradient(135deg,#1E3A8A,#3B82F6)",
-        },
-      },
+    // React.createElement(
+    //   "table",
+    //   {
+    //     style: {
+    //       width: "100%",
+    //       background: "#7bcdff",
+    //     },
+    //   },
+    //   React.createElement(
+    //     "tbody",
+    //     null,
+    //     React.createElement(
+    //       "tr",
+    //       null,
+    //       React.createElement(
+    //         "td",
+    //         { style: { padding: "32px 28px" } },
+
+    //         React.createElement(
+    //           "div",
+    //           { style: { fontSize: "24px", color: "#0056f0" } },
+    //           "Incident Notification"
+    //         ),
+
+    //         // React.createElement(
+    //         //   "div",
+    //         //   {
+    //         //     style: { fontSize: "13px", color: "#0056f0", marginTop: "4px" },
+    //         //   },
+    //         //   React.createElement(
+    //         //     "span",
+    //         //     { style: { color: "#0056f0"} },
+    //         //     "Incident ID: "
+    //         //   ),
+    //         //     data.display_id || data.incident_number
+    //         // ),
+
+    //         React.createElement(
+    //           "div",
+    //           {
+    //             style: {
+    //               marginTop: "14px",
+    //               display: "inline-block",
+    //               // backgroundColor: cfg.bgColor,
+    //               color: "#ffffff",
+    //               border: `2px solid ${cfg.borderColor}`,
+    //               padding: "6px 14px",
+    //               borderRadius: "5px",
+    //               fontWeight: "700",
+    //               fontSize: "14px",
+    //             },
+    //           },
+    //           currentStatus.toUpperCase()
+    //         )
+    //       )
+    //     )
+    //   )
+    // ),
+    bannerImageSrc &&
       React.createElement(
-        "tbody",
-        null,
+        "table",
+        {
+          width: "100%",
+          cellPadding: "0",
+          cellSpacing: "0",
+          style: { borderCollapse: "collapse" },
+        },
         React.createElement(
-          "tr",
+          "tbody",
           null,
           React.createElement(
-            "td",
-            { style: { padding: "32px 28px" } },
-
+            "tr",
+            null,
             React.createElement(
-              "div",
-              { style: { fontSize: "24px", color: "#ffffff"} },
-              "Incident Notification"
-            ),
-
-            React.createElement(
-              "div",
-              {
-                style: { fontSize: "13px", color: "#ffffff", marginTop: "4px" },
-              },
-              React.createElement(
-                "span",
-                { style: { color: "#ffffff"} },
-                "Incident ID: "
-              ),
-                data.display_id || data.incident_number
-            ),
-
-            React.createElement(
-              "div",
-              {
+              "td",
+              null,
+              React.createElement("img", {
+                src: bannerImageSrc,
+                alt: "Incident Banner",
+                width: "650",
                 style: {
-                  marginTop: "14px",
-                  display: "inline-block",
-                  // backgroundColor: cfg.bgColor,
-                  color: "#ffffff",
-                  border: `2px solid ${cfg.borderColor}`,
-                  padding: "6px 14px",
-                  borderRadius: "5px",
-                  fontWeight: "700",
-                  fontSize: "14px",
+                  display: "block",
+                  width: "100%",
+                  maxWidth: "650px",
+                  height: "auto",
                 },
-              },
-              currentStatus.toUpperCase()
+              })
             )
           )
         )
-      )
-    ),
-//    React.createElement(
-//   "table",
-//   {
-//     style: {
-//       width: "100%",
-//       background: "linear-gradient(135deg,#1E3A8A,#3B82F6)",
-//     },
-//   },
-//   React.createElement(
-//     "tbody",
-//     null,
-//     React.createElement(
-//       "tr",
-//       null,
-//       React.createElement(
-//         "td",
-//         { style: { padding: "32px 28px" } },
+      ),
 
-//         React.createElement("img", {
-//           src: headerUrl,
-//           width: "650",
-//           height: "140",
-//           style: {
-//             display: "block",
-//             width: "100%",
-//             maxWidth: "650px",
-//             height: "auto",
-//           },
-//           alt: "Incident Header",
-//         })
-//       )
-//     )
-//   )
-// ),
+    //    React.createElement(
+    //   "table",
+    //   {
+    //     style: {
+    //       width: "100%",
+    //       background: "linear-gradient(135deg,#1E3A8A,#3B82F6)",
+    //     },
+    //   },
+    //   React.createElement(
+    //     "tbody",
+    //     null,
+    //     React.createElement(
+    //       "tr",
+    //       null,
+    //       React.createElement(
+    //         "td",
+    //         { style: { padding: "32px 28px" } },
+
+    //         React.createElement("img", {
+    //           src: headerUrl,
+    //           width: "650",
+    //           height: "140",
+    //           style: {
+    //             display: "block",
+    //             width: "100%",
+    //             maxWidth: "650px",
+    //             height: "auto",
+    //           },
+    //           alt: "Incident Header",
+    //         })
+    //       )
+    //     )
+    //   )
+    // ),
     /* INSERTED FLOW IMAGE */
-   data.status !="Not an Issue" && imageSrc &&
+    data.status != "Not an Issue" &&
+      imageSrc &&
       React.createElement(
         "table",
         {
@@ -256,7 +305,7 @@ const injectUpdateTime = (text, updatedAt) => {
     latestStatusUpdate &&
       infoRowWithLabel(
         "LATEST UPDATE",
-        latestStatusUpdate,
+        `Latest Update: ${inlineLatestUpdateHtml(latestStatusUpdate)}`,
         "#ECFDF5",
         "#10B981"
       ),
@@ -265,31 +314,31 @@ const injectUpdateTime = (text, updatedAt) => {
     row1("DESCRIPTION", data.incident_details),
 
     /* Previous Status Update */
-   previousStatusUpdates.length > 0 &&
-  React.createElement(
-    React.Fragment,
-    null,
-
-    // Label (no padding)
-    row1("PREVIOUS UPDATE"),
-
-    // Each update wrapped with padding
-    ...previousStatusUpdates.map((item, idx) =>
+    previousStatusUpdates.length > 0 &&
       React.createElement(
-        "div",
-        {
-          key: idx,
-          style: { padding: "0 28px 0 28px" },
-        },
-        infoBlock(
-          injectUpdateTime(item.text, item.updatedAt),
-          "#FEF3C7",
-          "#F59E0B",
-          { marginTop: idx === 0 ? "0.5rem" : "1rem" }
+        React.Fragment,
+        null,
+
+        // Label (no padding)
+        row1("PREVIOUS UPDATE"),
+
+        // Each update wrapped with padding
+        ...previousStatusUpdates.map((item, idx) =>
+          React.createElement(
+            "div",
+            {
+              key: idx,
+              style: { padding: "0 28px 0 28px" },
+            },
+            infoBlock(
+              injectUpdateTime(item.text, item.updatedAt),
+              "#FEF3C7",
+              "#F59E0B",
+              { marginTop: idx === 0 ? "0.5rem" : "1rem" }
+            )
+          )
         )
-      )
-    )
-  ),
+      ),
     /* STARTED + DISCOVERED */
     row2(
       "STARTED ON (UTC)",
@@ -335,13 +384,13 @@ const injectUpdateTime = (text, updatedAt) => {
     //   data.next_update_time &&
     //   row1("NEXT UPDATE", data.next_update_time),
 
-    data.next_update === "No" &&
-      infoRowWithLabel(
-        "NEXT UPDATE",
-        "Updates will be shared as progress continues.",
-        "#FEF3C7",
-        "#F59E0B"
-      ),
+    // data.next_update === "No" &&
+    //   infoRowWithLabel(
+    //     "NEXT UPDATE",
+    //     "Updates will be shared as progress continues.",
+    //     "#FEF3C7",
+    //     "#F59E0B"
+    //   ),
 
     // /* AFFECTED ACCOUNTS */
     // (normalized === "resolved" || normalized === "resolved with rca") &&
@@ -407,6 +456,19 @@ const injectUpdateTime = (text, updatedAt) => {
               { style: { fontSize: "12px", color: "#6B7280" } },
               "support@taboola.com"
             )
+          ),
+          React.createElement(
+            "td",
+            { style: { textAlign: "end", paddingRight: "10px" } },
+            React.createElement("div", {
+              style: { fontSize: "13px", fontWeight: "600", color: "#1F2937" },
+            }),
+            React.createElement(
+              "span",
+              { style: { color: "#6B7280", marginRight: "6px" } },
+              "Incident ID:"
+            ),
+            incidentLinkEl(data.incident_number, data.incident_link)
           )
         )
       )
@@ -430,20 +492,37 @@ const label = (text) =>
     text
   );
 
-const val = (text, style = {}) =>
-  React.createElement(
-    "div",
-    {
-      style: {
-        fontFamily: '"Poppins", Arial, sans-serif',
-        fontSize: "14px",
-        color: "#1F2937",
-        marginTop: "6px",
-        ...style,
+const val = (content, style = {}) => {
+  // ✅ React element → render directly
+  if (React.isValidElement(content)) {
+    return React.createElement(
+      "div",
+      {
+        style: {
+          fontFamily: '"Poppins", Arial, sans-serif',
+          fontSize: "14px",
+          marginTop: "6px",
+          ...style,
+        },
       },
+      content
+    );
+  }
+
+  // ✅ String / number / boolean → sanitize
+  return React.createElement("div", {
+    style: {
+      fontFamily: '"Poppins", Arial, sans-serif',
+      fontSize: "14px",
+      color: "#1F2937",
+      marginTop: "6px",
+      ...style,
     },
-    text
-  );
+    dangerouslySetInnerHTML: {
+      __html: sanitizeEmailHtml(content),
+    },
+  });
+};
 
 const severity = (text) =>
   React.createElement(
@@ -474,22 +553,21 @@ const infoRowWithLabel = (title, content, bg, border) =>
     infoBlock(content, bg, border)
   );
 
-const infoBlock = (text, bg, border,options = {}) =>
-  React.createElement(
-    "div",
-    {
-      style: {
-        backgroundColor: bg,
-        borderLeft: `3px solid ${border}`,
-        padding: "12px",
-        borderRadius: "4px",
-        marginTop: options.marginTop ?? "1rem",
-        fontSize: "14px",
-        color: "#1F2937",
-      },
+const infoBlock = (html, bg, border, options = {}) =>
+  React.createElement("div", {
+    style: {
+      backgroundColor: bg,
+      borderLeft: `3px solid ${border}`,
+      padding: "12px",
+      borderRadius: "4px",
+      marginTop: options.marginTop ?? "1rem",
+      fontSize: "14px",
+      color: "#1F2937",
     },
-    text
-  );
+    dangerouslySetInnerHTML: {
+      __html: sanitizeEmailHtml(html) || "",
+    },
+  });
 
 const row2 = (l1, v1, l2, v2) =>
   React.createElement(
@@ -537,5 +615,60 @@ const row1 = (l, v) =>
       )
     )
   );
+
+const sanitizeEmailHtml = (input) => {
+  if (input === null || input === undefined) return "";
+
+  // If already a string → sanitize
+  if (typeof input === "string") {
+    return input
+      .replace(/<p>/gi, '<div style="margin:0;padding:0;">')
+      .replace(/<\/p>/gi, "</div>")
+      .replace(/<strong>/gi, '<strong style="font-weight:600;">');
+  }
+
+  // If number / boolean → convert safely
+  if (typeof input === "number" || typeof input === "boolean") {
+    return String(input);
+  }
+
+  // Anything else (React elements, objects) → DO NOT sanitize
+  return "";
+};
+
+const inlineLatestUpdateHtml = (input) => {
+  if (!input) return "";
+
+  if (typeof input !== "string") return String(input);
+
+  return (
+    input
+      // remove block wrappers completely
+      .replace(/<p[^>]*>/gi, "")
+      .replace(/<\/p>/gi, "")
+      .replace(/<div[^>]*>/gi, "")
+      .replace(/<\/div>/gi, "")
+      // keep strong / em inline
+      .replace(/<strong>/gi, '<strong style="font-weight:600;">')
+  );
+};
+const incidentLinkEl = (incidentNumber, incidentLink) => {
+  if (!incidentLink) return incidentNumber;
+
+  return React.createElement(
+    "a",
+    {
+      href: incidentLink,
+      target: "_blank",
+      rel: "noopener noreferrer",
+      style: {
+        color: "#2563eb",
+        textDecoration: "underline",
+        fontWeight: "600",
+      },
+    },
+    incidentNumber
+  );
+};
 
 module.exports = EmailTemplate;

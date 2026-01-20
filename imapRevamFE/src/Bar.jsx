@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "@mantine/form";
 import groupedProductOptions from "./data/GroupedProductItems";
 import emailGroups from "./data/EmailGroups";
@@ -10,7 +10,7 @@ import MultiSelectEmails from "./components/MultiSelectEmails";
 import ActionBtn from "./components/ActionBtn";
 import InputBtn from "./components/InputBtn";
 import DateTimeSelector from "./components/DateTimeSelector";
-import EmailTemplateLayout from "./EmailTemplateLayout";
+import EmailTemplateLayout from "./utils/EmailTemplateLayout";
 import { Box, Title, Group, Textarea, Modal, Switch } from "@mantine/core";
 import SearchableInput from "./components/SearchableInput";
 import { notifications } from "@mantine/notifications";
@@ -18,11 +18,13 @@ import {
   fetchIncidentByNumber,
   fetchAllIncidents,
   saveIncident,
+  sendDepartmentChangeEmail,
 } from "./services/incidentOperations";
 import DepartmentCard from "./components/DepartmentCard";
 import IncidentData from "./components/IncidentData";
 import ConfirmSubmitModal from "./components/ConfirmSubmitModal";
 import StatsOverview from "./components/StatsOverview";
+import DepartmentChangeFlow from "./components/DepartmentChangeFlow";
 
 const Bar = () => {
   const formTabs = ["General", "Publisher", "Advertiser", "Header Bidding"];
@@ -38,19 +40,28 @@ const Bar = () => {
   const [saving, setSaving] = useState(false);
   const [payload, setPayload] = useState(null);
   const [submitProgress, setSubmitProgress] = useState(0);
+  const [deptConfirmOpen, setDeptConfirmOpen] = useState(false);
+  const [deptFlowStep, setDeptFlowStep] = useState("confirm");
+  const [pendingDepartment, setPendingDepartment] = useState(null);
+  const [deptEmail, setDeptEmail] = useState("");
+  const [notifyStakeholders, setNotifyStakeholders] = useState(false);
+  const [deptProgress, setDeptProgress] = useState(0);
+  const [departmentLocked, setDepartmentLocked] = useState(false);
+  const prevStatusRef = useRef(null);
+  const statusUpdateCacheRef = useRef({});
 
   const statusGradientMapNormal = {
     Suspected: {
       gradient: "#0056f0", // blue
       iconClass: "fa-solid fa-magnifying-glass",
     },
-    "Not an Issue": {
-      gradient: "", // blue
-      iconClass: "",
-    },
     Ongoing: {
       gradient: "#e53e3e", // red
       iconClass: "fa-solid fa-circle",
+    },
+    "Not an Issue": {
+      gradient: "", // blue
+      iconClass: "",
     },
     Resolved: {
       gradient: "#ecc94b", // yellow
@@ -414,6 +425,98 @@ const Bar = () => {
   }, []);
 
   useEffect(() => {
+    const currentStatus = form.values.radio.status;
+    const prevStatus = prevStatusRef.current;
+
+    if (!prevStatus) {
+      prevStatusRef.current = currentStatus;
+      return;
+    }
+
+    if (prevStatus === currentStatus) return;
+
+    const currentText = form.values.textArea.statusUpdateDetails;
+
+    if (currentText?.trim()) {
+      statusUpdateCacheRef.current[prevStatus] = currentText;
+    }
+
+    const restoredText = statusUpdateCacheRef.current[currentStatus] || "";
+
+    form.setFieldValue("textArea.statusUpdateDetails", restoredText);
+    // form.setFieldValue("statusUpdate", false)
+
+    prevStatusRef.current = currentStatus;
+  }, [form.values.radio.status]);
+
+  useEffect(() => {
+    const status = form.values.radio.status;
+    const knownIssue = form.values.radio.known_issue;
+
+    // nothing selected yet
+    if (!status) {
+      form.setFieldValue("radio.remainingStatus", []);
+      return;
+    }
+
+    // Not an Issue → no timeline
+    if (status === "Not an Issue") {
+      form.setFieldValue("radio.remainingStatus", []);
+      return;
+    }
+
+    const flow =
+      knownIssue === "Yes"
+        ? Object.keys(statusGradientMapKnownIssue)
+        : STATUS_FLOW;
+
+    const index = flow.indexOf(status);
+
+    if (index === -1) {
+      form.setFieldValue("radio.remainingStatus", []);
+      return;
+    }
+
+    const map =
+      knownIssue === "Yes"
+        ? statusGradientMapKnownIssue
+        : statusGradientMapNormal;
+
+    const remainingStatusValues = flow.slice(index).map((s) => ({
+      statusName: s,
+      color: map[s]?.gradient,
+      icons: map[s]?.iconClass,
+    }));
+
+    form.setFieldValue("radio.remainingStatus", remainingStatusValues);
+  }, [form.values.radio.status, form.values.radio.known_issue]);
+
+  useEffect(() => {
+    if (deptFlowStep !== "submitting") return;
+
+    setDeptProgress(0);
+
+    const interval = setInterval(() => {
+      setDeptProgress((prev) => {
+        if (prev >= 95) return prev;
+        return prev + Math.floor(Math.random() * 8 + 3);
+      });
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, [deptFlowStep]);
+
+  useEffect(() => {
+    if (deptFlowStep !== "success") return;
+
+    const t = setTimeout(() => {
+      handleDeptConfirmDirect();
+    }, 1200);
+
+    return () => clearTimeout(t);
+  }, [deptFlowStep]);
+
+  useEffect(() => {
     if (confirmStage !== "submitting") return;
 
     setSubmitProgress(0);
@@ -427,6 +530,14 @@ const Bar = () => {
 
     return () => clearInterval(interval);
   }, [confirmStage]);
+
+  useEffect(() => {
+    if (deptConfirmOpen) {
+      setNotifyStakeholders(false);
+      setDeptFlowStep("confirm");
+      setDeptEmail("");
+    }
+  }, [deptConfirmOpen]);
 
   const computedStep = (() => {
     if (incidentAction.actionType === "create") {
@@ -534,34 +645,37 @@ const Bar = () => {
     //     form.setFieldValue("radio.remainingStatus", []);
     //   }
     // }
-    if (field === "radio.status") {
-      // Case 1: Not an Issue → no timeline
-      if (value === "Not an Issue") {
-        form.setFieldValue("radio.remainingStatus", []);
-        return;
-      }
-      const isKnownIssue = form.values.radio.known_issue === "Yes";
-      const flow = isKnownIssue
-        ? Object.keys(statusGradientMapKnownIssue)
-        : STATUS_FLOW;
-      // Case 2: status belongs to lifecycle
-      const index = flow.indexOf(value);
+    //     if (field === "radio.status") {
+    //       // Case 1: Not an Issue → no timeline
+    //       if (value === "Not an Issue") {
+    //         form.setFieldValue("radio.remainingStatus", []);
+    //         return;
+    //       }
+    //       const isKnownIssue = form.values.radio.known_issue === "Yes";
+    //       const flow = isKnownIssue
+    //         ? Object.keys(statusGradientMapKnownIssue)
+    //         : STATUS_FLOW;
+    //       // Case 2: status belongs to lifecycle
+    //       const index = flow.indexOf(value);
+    // console.log(flow);
 
-      if (index === -1) {
-        form.setFieldValue("radio.remainingStatus", []);
-        return;
-      }
+    //       if (index === -1) {
+    //         form.setFieldValue("radio.remainingStatus", []);
+    //         return;
+    //       }
+    // console.log(index);
 
-      const remainingStatusValues = flow
-        .slice(index) // INCLUDE selected status
-        .map((status) => ({
-          statusName: status,
-          color: statusGradientMap[status]?.gradient,
-          icons: statusGradientMap[status]?.iconClass,
-        }));
+    //       const remainingStatusValues = flow
+    //         .slice(index) // INCLUDE selected status
+    //         .map((status) => ({
+    //           statusName: status,
+    //           color: statusGradientMap[status]?.gradient,
+    //           icons: statusGradientMap[status]?.iconClass,
+    //         }));
+    // console.log(remainingStatusValues);
 
-      form.setFieldValue("radio.remainingStatus", remainingStatusValues);
-    }
+    //       form.setFieldValue("radio.remainingStatus", remainingStatusValues);
+    //     }
   };
   const filterSuggestions = (value) => {
     if (!value.trim()) {
@@ -586,12 +700,12 @@ const Bar = () => {
     });
   };
 
-  const stripHtml = (html) => {
-    if (!html) return "";
-    const tmp = document.createElement("div");
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || "";
-  };
+  // const stripHtml = (html) => {
+  //   if (!html) return "";
+  //   const tmp = document.createElement("div");
+  //   tmp.innerHTML = html;
+  //   return tmp.textContent || tmp.innerText || "";
+  // };
 
   useEffect(() => {
     const selectedItem = form.values.dropDown.affectedProduct;
@@ -629,6 +743,7 @@ const Bar = () => {
     setOldIncidentData(null);
 
     setFormStep(1);
+    setDepartmentLocked(false); // ✅ RESET HERE
 
     setIncidentAction({
       showForm: false,
@@ -712,7 +827,6 @@ const Bar = () => {
           : JSON.stringify(form.values.radio.remainingStatus), // ✅ save,
       incident_type: form.values.radio.incidentType,
       revenue_impact: form.values.radio.revenueImpact,
-      revenue_impact_details: form.values.inputBox.revenueImpactDetails,
       next_update: form.values.radio.nextUpdate,
       workaround: form.values.radio.workaround,
       reported_by: form.values.dropDown.reportedBy,
@@ -723,28 +837,59 @@ const Bar = () => {
       notification_mails: form.values.dropDown.notificationMails,
       start_time: form.values.dateTime.startTime.utc,
       discovered_time: form.values.dateTime.discoveredTime.utc,
-      next_update_time: form.values.dateTime.nextUpdateTime.utc,
-      resolved_time: form.values.dateTime.resolvedTime.utc,
-      resolved_with_rca_time: form.values.dateTime.resolvedWithRcaTime.utc,
-      resolved_details: stripHtml(form.values.textArea.resolvedDetails),
-      resolved_with_rca_details: stripHtml(
-        form.values.textArea.resolvedwithRcaDetails
-      ),
-      incident_details: stripHtml(form.values.textArea.incidentDetails),
+      incident_details: form.values.textArea.incidentDetails,
     };
     // ✅ add only if user provided status update details
-    if (form.values.textArea.statusUpdateDetails?.trim()) {
-      preparedPayload.status_update_details = stripHtml(
-        form.values.textArea.statusUpdateDetails
-      );
+    if (
+      form.values.statusUpdate === true &&
+      form.values.textArea.statusUpdateDetails?.trim()
+    ) {
+      preparedPayload.status_update_details =
+        form.values.textArea.statusUpdateDetails;
+    } else {
+      preparedPayload.status_update_details = null;
     }
 
-    // ✅ add only if user provided workaround details
-    if (form.values.textArea.workaroundDetails?.trim()) {
-      preparedPayload.workaround_details = stripHtml(
-        form.values.textArea.workaroundDetails
-      );
+    if (form.values.radio.status === "Resolved") {
+      preparedPayload.resolved_details = form.values.textArea.resolvedDetails;
+      preparedPayload.resolved_time = form.values.dateTime.resolvedTime.utc;
+    } else {
+      preparedPayload.resolved_details = null;
+      preparedPayload.resolved_time = null;
     }
+    if (form.values.radio.status === "Resolved with RCA") {
+      preparedPayload.resolved_with_rca_details =
+        form.values.textArea.resolvedwithRcaDetails;
+      preparedPayload.resolved_with_rca_time =
+        form.values.dateTime.resolvedWithRcaTime.utc;
+    } else {
+      preparedPayload.resolved_with_rca_details = null;
+      preparedPayload.resolved_with_rca_time = null;
+    }
+    // ✅ add only if user provided workaround details
+    if (
+      form.values.radio.workaround === "Yes" &&
+      form.values.textArea.workaroundDetails?.trim()
+    ) {
+      preparedPayload.workaround_details =
+        form.values.textArea.workaroundDetails;
+    } else {
+      preparedPayload.workaround_details = null;
+    }
+
+    if (form.values.radio.nextUpdate === "Yes") {
+      preparedPayload.next_update_time =
+        form.values.dateTime.nextUpdateTime.utc;
+    } else {
+      preparedPayload.next_update_time = null;
+    }
+    if (form.values.radio.revenueImpact === "Yes") {
+      preparedPayload.revenue_impact_details =
+        form.values.inputBox.revenueImpactDetails;
+    } else {
+      preparedPayload.revenue_impact_details = null;
+    }
+
     setPayload(preparedPayload);
     openConfirm("submit");
     return;
@@ -902,6 +1047,7 @@ const Bar = () => {
         },
         statusUpdate: incident.status_update_details ? true : false,
       });
+      prevStatusRef.current = incident.status;
       setOriginalIncident({
         ...incident,
         remaining_status: Array.isArray(incident.remaining_status)
@@ -941,6 +1087,64 @@ const Bar = () => {
     }
 
     return null;
+  };
+
+  const handleDeptCancel = () => {
+    setDeptConfirmOpen(false);
+    setPendingDepartment(null);
+    setDeptFlowStep("confirm");
+    setNotifyStakeholders(false);
+    setDeptEmail("");
+  };
+
+  const handleDeptNext = () => {
+    setDeptFlowStep("compose");
+  };
+
+  const handleDeptSend = async () => {
+    const incidentNumber = extractIncidentNumber(
+      form.values.inputBox.incidentLink
+    );
+
+    if (!incidentNumber) {
+      notifications.show({
+        title: "Missing Incident",
+        message: "Please fetch the incident before notifying stakeholders.",
+        color: "red",
+      });
+      return;
+    }
+    try {
+      setDeptFlowStep("submitting");
+      await sendDepartmentChangeEmail({
+        incidentNumber: extractIncidentNumber(
+          form.values.inputBox.incidentLink
+        ),
+        fromDepartment: form.values.departmentName,
+        toDepartment: pendingDepartment,
+        messageHtml: deptEmail,
+      });
+      setDeptProgress(100);
+      setTimeout(() => setDeptFlowStep("success"), 300);
+    } catch (e) {
+      setDeptFlowStep("compose");
+      notifications.show({
+        title: "Email failed",
+        message: "Department was NOT changed",
+        color: "red",
+      });
+    }
+  };
+
+  const handleDeptConfirmDirect = () => {
+    if (!pendingDepartment) return;
+
+    form.setFieldValue("departmentName", pendingDepartment);
+    form.setFieldValue("dropDown.affectedProduct", null);
+    form.setFieldValue("dropDown.notificationMails", []);
+
+    setDepartmentLocked(true); // 🔒 LOCK IT HERE
+    handleDeptCancel();
   };
 
   return (
@@ -1213,17 +1417,27 @@ justify-between"
                             key={dept}
                             title={dept}
                             active={form.values.departmentName === dept}
+                            disabled={departmentLocked}
                             onClick={() => {
-                              handleChange("departmentName", dept);
-                              form.setFieldValue(
-                                "dropDown.affectedProduct",
-                                null
-                              );
-                              form.setFieldValue(
-                                "dropDown.notificationMails",
-                                []
-                              );
-                              // setFormStep(4);
+                              if (departmentLocked) return;
+                              // CREATE → no confirmation needed
+                              if (incidentAction.actionType === "create") {
+                                handleChange("departmentName", dept);
+                                form.setFieldValue(
+                                  "dropDown.affectedProduct",
+                                  null
+                                );
+                                form.setFieldValue(
+                                  "dropDown.notificationMails",
+                                  []
+                                );
+                                return;
+                              }
+                              // UPDATE + department unchanged → do nothing
+                              if (form.values.departmentName === dept) return;
+                              setPendingDepartment(dept);
+                              setDeptFlowStep("confirm"); // 🔥 step 1
+                              setDeptConfirmOpen(true);
                             }}
                           />
                         ))}
@@ -1299,6 +1513,7 @@ justify-between"
                       </div>
 
                       <IncidentTxtBox
+                        context="incident_details"
                         inputProps={{
                           ...form.getInputProps("textArea.incidentDetails"), // keeps value, error, onBlur, etc.
                           onChange: (val) =>
@@ -1331,12 +1546,11 @@ justify-between"
                             return status !== "Not an Issue";
                           }
 
-                          // If progressed beyond Suspected → Not an Issue must be locked
-                          if (
-                            current !== "Suspected" &&
-                            status === "Not an Issue"
-                          ) {
-                            return true;
+                          // ❌ Not an Issue NOT allowed after resolution
+                          if (status === "Not an Issue") {
+                            return ["Resolved", "Resolved with RCA"].includes(
+                              current
+                            );
                           }
 
                           // Normal lifecycle locking
@@ -1350,6 +1564,7 @@ justify-between"
                       />
                       {form.values.radio.status === "Resolved" && (
                         <IncidentTxtBox
+                          context="resolution"
                           inputProps={{
                             ...form.getInputProps("textArea.resolvedDetails"),
                             onChange: (val) =>
@@ -1360,6 +1575,7 @@ justify-between"
                       )}
                       {form.values.radio.status === "Resolved with RCA" && (
                         <IncidentTxtBox
+                          context="resolutionRca"
                           inputProps={{
                             ...form.getInputProps(
                               "textArea.resolvedwithRcaDetails"
@@ -1392,6 +1608,7 @@ justify-between"
                         </div>
                         {form.values.statusUpdate && (
                           <IncidentTxtBox
+                            context="status_update"
                             inputProps={{
                               ...form.getInputProps(
                                 "textArea.statusUpdateDetails"
@@ -1402,7 +1619,7 @@ justify-between"
                                   val
                                 ), // replace default onChange
                             }}
-                            startingLine="Status Update:"
+                            startingLine=""
                           />
                         )}
                       </div>
@@ -1417,6 +1634,7 @@ justify-between"
                       />
                       {form.values.radio.workaround === "Yes" && (
                         <IncidentTxtBox
+                          context="workaround"
                           inputProps={{
                             ...form.getInputProps("textArea.workaroundDetails"), // keeps value, error, onBlur, etc.
                             onChange: (val) =>
@@ -1727,6 +1945,22 @@ justify-between"
                     setConfirmStage("confirm");
                   }}
                   onConfirm={handleConfirmSubmit}
+                />
+                <DepartmentChangeFlow
+                  opened={deptConfirmOpen}
+                  step={deptFlowStep}
+                  progress={deptProgress}
+                  fromDepartment={form.values.departmentName}
+                  toDepartment={pendingDepartment}
+                  notifyStakeholders={notifyStakeholders}
+                  setNotifyStakeholders={setNotifyStakeholders}
+                  emailValue={deptEmail}
+                  onEmailChange={setDeptEmail}
+                  onCancel={handleDeptCancel}
+                  onConfirmDirect={handleDeptConfirmDirect}
+                  onNext={handleDeptNext}
+                  onSend={handleDeptSend}
+                  disabled={departmentLocked}
                 />
               </Box>
             </section>

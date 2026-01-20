@@ -1,6 +1,6 @@
 import React from "react";
-import getIncidentLabel from "./utils/getIncidentLabel";
-import { formatDate } from "./utils/formatDate";
+import getIncidentLabel from "./getIncidentLabel";
+import { formatDate } from "./formatDate";
 
 const COLOR_MAP = {
   suspected: {
@@ -39,8 +39,7 @@ const normalizeStatus = (status) => {
 // };
 
 const EmailTemplateLayout = ({ data }) => {
-  console.log(data);
-
+  
   const normalizedStatus = normalizeStatus(data.radio.status);
   const colorCfg = COLOR_MAP[normalizedStatus] || {
     color: "#6B7280",
@@ -52,7 +51,20 @@ const EmailTemplateLayout = ({ data }) => {
     (s) => normalizeStatus(s.statusName) === normalizedStatus
   );
 
-  const incidentNumber = getIncidentLabel(data);
+  const HtmlBlock = ({ html, style = {} }) => (
+    <div
+      style={{
+        fontSize: "14px",
+        color: "#1F2937",
+        lineHeight: "1.6",
+        ...style,
+      }}
+      dangerouslySetInnerHTML={{ __html: html || "" }}
+    />
+  );
+
+  // const incidentNumber = getIncidentLabel(data);
+  const incidentNumber= data.history[0]?.incident_number
 
   const history = data.history || [];
 
@@ -61,30 +73,33 @@ const EmailTemplateLayout = ({ data }) => {
 
   // Previous updates ONLY from DB
   const previousStatusUpdates = [];
-  let lastSeen = null;
 
   for (const h of history) {
     const text = (h.status_update_details || "").trim();
+    const OldStatus= normalizeStatus(h.status || "");
+    const currentStatus= normalizeStatus(data.radio.status)
 
     if (!text) continue;
 
-    // skip duplicates
-    if (text === lastSeen) continue;
+    if(OldStatus !== currentStatus) continue
 
-    previousStatusUpdates.push({
+    // skip duplicates
+    if (latestStatusUpdate && text === latestStatusUpdate) continue;
+
+    previousStatusUpdates
+    .push({
       text,
       updatedAt: h.updated_at,
     });
-    lastSeen = text;
   }
 
   const injectUpdateTime = (text, updatedAt) => {
-    if (!text) return "";
+    if (!text || !updatedAt) return text || "";
 
-    // avoid double processing
-    if (/\[.*?\]/.test(text)) return text;
-
-    if (!text.startsWith("Status Update:")) return text;
+    // prevent double injection
+    if (/\d{2}\s[A-Za-z]{3}\s\d{4}\s\d{2}:\d{2}/.test(text)) {
+      return text;
+    }
 
     const date = new Date(updatedAt);
 
@@ -98,9 +113,10 @@ const EmailTemplateLayout = ({ data }) => {
       hour12: false,
     });
 
-    const clean = text.replace(/^Status Update:\s*/, "");
+    // Remove any leading HTML wrappers
+    const cleaned = text.replace(/^<[^>]+>/, "").replace(/<\/[^>]+>$/, "");
 
-    return `Status Update : ${formatted} - ${clean}`;
+    return `Status Update : ${formatted} - ${cleaned}`;
   };
 
   return (
@@ -127,12 +143,12 @@ const EmailTemplateLayout = ({ data }) => {
                 Incident Notification
               </div>
 
-              <div
+              {/* <div
                 style={{ fontSize: "13px", color: "#E0E7FF", marginTop: "4px" }}
               >
                 <span style={{ color: "#BFDBFE" }}>Incident ID:</span>{" "}
                 {incidentNumber}
-              </div>
+              </div> */}
 
               <div
                 style={{
@@ -269,17 +285,26 @@ const EmailTemplateLayout = ({ data }) => {
                 </div>
 
                 <div
-                  style={{
-                    backgroundColor: "#ECFDF5",
-                    borderLeft: "3px solid #10B981",
-                    padding: "12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                    color: "#1F2937",
-                  }}
-                >
-                  {latestStatusUpdate}
-                </div>
+  style={{
+    backgroundColor: "#ECFDF5",
+    borderLeft: "3px solid #10B981",
+    padding: "12px",
+    borderRadius: "4px",
+    fontSize: "14px",
+    color: "#1F2937",
+  }}
+>
+  <strong>Latest Update:</strong>{" "}
+  <span
+  dangerouslySetInnerHTML={{
+    __html: (latestStatusUpdate || "")
+      .replace(/<p[^>]*>/gi, "")
+      .replace(/<\/p>/gi, "")
+      .replace(/<div[^>]*>/gi, "")
+      .replace(/<\/div>/gi, "")
+  }}
+/>
+</div>
               </td>
             </tr>
           </tbody>
@@ -301,11 +326,7 @@ const EmailTemplateLayout = ({ data }) => {
               >
                 DESCRIPTION
               </div>
-              <div
-                style={{ fontSize: "14px", color: "#1F2937", marginTop: "6px" }}
-              >
-                {data.textArea.incidentDetails}
-              </div>
+              <HtmlBlock html={data.textArea.incidentDetails} />
             </td>
           </tr>
         </tbody>
@@ -340,7 +361,9 @@ const EmailTemplateLayout = ({ data }) => {
                       marginBottom: "1rem",
                     }}
                   >
-                    {injectUpdateTime(item.text, item.updatedAt)}
+                    <HtmlBlock
+                      html={injectUpdateTime(item.text, item.updatedAt)}
+                    />
                   </div>
                 ))}
               </td>
@@ -666,7 +689,7 @@ const EmailTemplateLayout = ({ data }) => {
             )} */}
 
           {/* RESOLUTION DETAILS */}
-          {data.radio?.nextUpdate !== "Yes" && (
+          {/* {data.radio?.nextUpdate !== "Yes" && (
             <tr>
               <td colSpan="2" style={{ padding: "24px 28px 0 28px" }}>
                 <div
@@ -693,7 +716,7 @@ const EmailTemplateLayout = ({ data }) => {
                 </div>
               </td>
             </tr>
-          )}
+          )} */}
           {/* WORKAROUND (only when YES) */}
           {data.radio?.workaround === "Yes" &&
             data.textArea?.workaroundDetails && (
@@ -720,7 +743,7 @@ const EmailTemplateLayout = ({ data }) => {
                       color: "#1F2937",
                     }}
                   >
-                    {data.textArea.workaroundDetails}
+                    <HtmlBlock html={data.textArea.workaroundDetails} />
                   </div>
                 </td>
               </tr>
@@ -751,7 +774,7 @@ const EmailTemplateLayout = ({ data }) => {
                       color: "#1F2937",
                     }}
                   >
-                    {data.textArea.resolvedDetails}
+                    <HtmlBlock html={data.textArea.resolvedDetails} />
                   </div>
                 </td>
               </tr>
@@ -782,7 +805,7 @@ const EmailTemplateLayout = ({ data }) => {
                       color: "#1F2937",
                     }}
                   >
-                    {data.textArea.resolvedwithRcaDetails}
+                    <HtmlBlock html={data.textArea.resolvedwithRcaDetails} />
                   </div>
                 </td>
               </tr>
@@ -807,6 +830,18 @@ const EmailTemplateLayout = ({ data }) => {
               </div>
               <div style={{ fontSize: "12px", color: "#6B7280" }}>
                 support@taboola.com
+              </div>
+            </td>
+            <td style={{ textAlign: "end", paddingRight: "10px" }}>
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "#1F2937",
+                }}
+              >
+                <span style={{ color: "#6B7280" }}>Incident ID:</span>{" "}
+                <a href={data.history[0]?.incident_link}>{incidentNumber}</a>
               </div>
             </td>
           </tr>

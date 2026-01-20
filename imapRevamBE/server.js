@@ -7,11 +7,14 @@ const { render } = require("@react-email/render");
 const React = require("react");
 const EmailTemplate = require("./mailer/emailTemplate"); // import your template
 const getRemainingStatus = require("./utils/getRemainingStatus");
+const { improveHtmlWithAI } = require("./services/aiService");
+const router = express.Router();
 // const generateHeaderPng = require("./utils/generateHeaderSvg");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use("/api/v1/ai", router);
 
 (async () => {
   await initDB();
@@ -175,10 +178,13 @@ app.post("/api/v1/incidents", async (req, res) => {
         },
       })
     );
+    // ,"parassingh964@gmail.com"
 
     await sendIncidentEmail({
-      to: ["taboolaimaptest@gmail.com","parassingh964@gmail.com"],
-      subject: `[${newData.status}] ${displayLabel} - ${newData.subject}`,
+      to: "taboolaimaptest@gmail.com",
+      subject: `[Internal Notification] ${newData.status}: ${
+        newData.revenue_impact ? "[Revenue Impacted]" : ""
+      } ${newData.subject}`,
       html,
     });
 
@@ -235,7 +241,7 @@ app.get("/api/v1/incidents/:incident_number", async (req, res) => {
       );
     }
 
-     // ✅ IMPORTANT: explicitly handle "not found"
+    // ✅ IMPORTANT: explicitly handle "not found"
     if (!rows || rows.length === 0) {
       return res.status(200).json([]);
     }
@@ -254,6 +260,90 @@ app.get("/api/v1/incidents", async (req, res) => {
   } catch (err) {
     console.error("❌ Error fetching incident:", err);
     res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ---------------- AI ROUTE ----------------
+router.post("/improve", async (req, res) => {
+  try {
+    const { html, context } = req.body;
+
+    if (!html || !context) {
+      return res.status(400).json({ error: "html and context are required" });
+    }
+
+    const improvedHtml = await improveHtmlWithAI(html, context);
+    res.json({ html: improvedHtml });
+  } catch (err) {
+    console.error("❌ AI improve error:", err);
+    res.status(500).json({ error: "AI processing failed" });
+  }
+});
+
+app.post("/api/v1/incidents/department-change-email", async (req, res) => {
+  try {
+    const { incidentNumber, fromDepartment, toDepartment, messageHtml } =
+      req.body;
+
+    if (!incidentNumber || !fromDepartment || !toDepartment) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // 🔥 FETCH LAST SAVED INCIDENT
+    const [rows] = await pool.query(
+      `SELECT notification_mails
+       FROM incidents
+       WHERE incident_number = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [incidentNumber]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: "Incident not found" });
+    }
+
+    // ✅ USE OLD EMAIL LIST
+    let oldNotificationMails = [];
+
+    try {
+      oldNotificationMails = rows[0].notification_mails
+        ? typeof rows[0].notification_mails === "string"
+          ? JSON.parse(rows[0].notification_mails)
+          : rows[0].notification_mails
+        : [];
+    } catch (e) {
+      console.error("❌ Failed to parse notification_mails", e);
+      oldNotificationMails = [];
+    }
+
+    const html = `
+      <p><strong>Incident:</strong> ${incidentNumber}</p>
+      <p>
+        <strong>Department Change:</strong>
+        ${fromDepartment} → ${toDepartment}
+      </p>
+      <hr />
+      ${messageHtml || "<p>No additional message provided.</p>"}
+    `;
+
+    if (!oldNotificationMails || oldNotificationMails.length === 0) {
+      return res.status(400).json({
+        error: "No previous notification emails found",
+      });
+    }
+    await sendIncidentEmail({
+      to: /*oldNotificationMails*/ "taboolaimaptest@gmail.com", // ✅ LAST SAVED
+      subject: `[Department Change] ${incidentNumber}`,
+      html,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({
+      error: "Email failed",
+      details: err.message,
+    });
   }
 });
 
