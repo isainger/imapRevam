@@ -79,26 +79,39 @@ const EmailTemplate = ({ data }) => {
     typeof data.status_update_details === "string"
       ? data.status_update_details.trim()
       : null;
-  // Previous updates come ONLY from DB
-  const previousStatusUpdates = [];
-
-  for (const h of history) {
-    const text = (h.status_update_details || "").trim();
-    const OldStatus = normalizeForKey(h.status || "");
-    const currentStatus = normalizeForKey(data.status);
-
-    if (!text) continue;
-
-    if (OldStatus !== currentStatus) continue;
-
-    // skip duplicates
-    if (latestStatusUpdate && text === latestStatusUpdate) continue;
-
-    previousStatusUpdates.push({
-      text,
-      updatedAt: h.updated_at,
-    });
-  }
+      const previousStatusUpdates = [];
+      const seenTexts = new Set();
+      
+      for (const h of history) {
+        const text = (h.status_update_details || "").trim();
+        if (!text) continue;
+      
+        const oldStatus = normalizeForKey(h.status || "");
+        const currentStatus = normalizeForKey(data.status);
+      
+        if (oldStatus !== currentStatus) continue;
+      
+        // exclude latest form update
+        if (latestStatusUpdate && text === latestStatusUpdate) continue;
+      
+        // normalize text for comparison
+        const normalizedText = text
+          .replace(/<[^>]*>/g, "") // strip HTML
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase();
+      
+        // ✅ skip duplicates
+        if (seenTexts.has(normalizedText)) continue;
+      
+        seenTexts.add(normalizedText);
+      
+        previousStatusUpdates.push({
+          text,
+          updatedAt: h.updated_at,
+        });
+      }
+      
   const injectUpdateTime = (text, updatedAt) => {
     if (!text || !updatedAt) return text || "";
 

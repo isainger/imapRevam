@@ -180,13 +180,44 @@ app.post("/api/v1/incidents", async (req, res) => {
     );
     // ,"parassingh964@gmail.com"
 
-    await sendIncidentEmail({
-      to: "taboolaimaptest@gmail.com",
-      subject: `[Internal Notification] ${newData.status}: ${
-        newData.revenue_impact ? "[Revenue Impacted]" : ""
-      } ${newData.subject}`,
-      html,
-    });
+    // 🔹 Determine email thread
+    let emailThreadId;
+
+    // FIRST EMAIL FOR INCIDENT
+    if (!lastRow || !lastRow.email_thread_id) {
+      emailThreadId = `<incident-${displayLabel}@taboola.local>`;
+
+      // 🔹 Save thread id in DB
+      await pool.query(
+        `UPDATE incidents
+     SET email_thread_id = ?
+     WHERE incident_number = ?`,
+        [emailThreadId, newData.incident_number]
+      );
+      const revenueTag = newData.revenue_impact ? "[Revenue Impacted] " : "";
+
+      // 🔹 Send FIRST email
+      await sendIncidentEmail({
+        to: "taboolaimaptest@gmail.com",
+        subject: `[Incident ${displayLabel}]: ${newData.subject}`,
+        html,
+        messageId: emailThreadId, // 🔥 ROOT MESSAGE
+      });
+    }
+
+    // FOLLOW-UP EMAIL
+    else {
+      emailThreadId = lastRow.email_thread_id;
+      const revenueTag = newData.revenue_impact ? "[Revenue Impacted] " : "";
+
+      await sendIncidentEmail({
+        to: "taboolaimaptest@gmail.com",
+        subject: `Re: [Incident ${displayLabel}]: ${newData.subject}`,
+        html,
+        inReplyTo: emailThreadId,
+        references: emailThreadId,
+      });
+    }
 
     res.json({ success: true, id: result.insertId, display_id: displayId });
   } catch (err) {
@@ -332,10 +363,28 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
         error: "No previous notification emails found",
       });
     }
+    // 🔹 Fetch thread id
+    const [[threadRow]] = await pool.query(
+      `SELECT email_thread_id, display_id, subject
+       FROM incidents
+       WHERE incident_number = ?
+       ORDER BY id ASC
+       LIMIT 1`,
+      [incidentNumber]
+    );
+
+    const displayLabel = `INC-${String(threadRow.display_id).padStart(4, "0")}`;
+
+    if (!threadRow?.email_thread_id) {
+      throw new Error("Email thread not found for incident");
+    }
+
     await sendIncidentEmail({
-      to: /*oldNotificationMails*/ "taboolaimaptest@gmail.com", // ✅ LAST SAVED
-      subject: `[Department Change] ${incidentNumber}`,
+      to: "taboolaimaptest@gmail.com",
+      subject: `Re: [Incident ${displayLabel}]: ${threadRow.subject}`,
       html,
+      inReplyTo: threadRow.email_thread_id,
+      references: threadRow.email_thread_id,
     });
 
     res.json({ success: true });

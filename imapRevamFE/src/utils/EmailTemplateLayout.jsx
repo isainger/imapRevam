@@ -39,8 +39,16 @@ const normalizeStatus = (status) => {
 // };
 
 const EmailTemplateLayout = ({ data }) => {
-  
+  // console.log(data);
+
   const normalizedStatus = normalizeStatus(data.radio.status);
+  const extractPlainText = (html = "") =>
+    html
+      .replace(/<br\s*\/?>/gi, "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
   const colorCfg = COLOR_MAP[normalizedStatus] || {
     color: "#6B7280",
     bgColor: "#E5E7EB",
@@ -49,6 +57,17 @@ const EmailTemplateLayout = ({ data }) => {
   const remainingStatus = data.radio.remainingStatus || [];
   const currentIndex = remainingStatus.findIndex(
     (s) => normalizeStatus(s.statusName) === normalizedStatus
+  );
+  const InlineHtml = ({ html }) => (
+    <span
+      dangerouslySetInnerHTML={{
+        __html: (html || "")
+          .replace(/<p[^>]*>/gi, "")
+          .replace(/<\/p>/gi, "")
+          .replace(/<div[^>]*>/gi, "")
+          .replace(/<\/div>/gi, ""),
+      }}
+    />
   );
 
   const HtmlBlock = ({ html, style = {} }) => (
@@ -64,31 +83,39 @@ const EmailTemplateLayout = ({ data }) => {
   );
 
   // const incidentNumber = getIncidentLabel(data);
-  const incidentNumber= data.history[0]?.incident_number
+  const incidentNumber = data.history[0]?.incident_number;
 
   const history = data.history || [];
 
   // Latest update ONLY from form input
-  const latestStatusUpdate = data.textArea?.statusUpdateDetails?.trim() || null;
+  const rawLatestUpdate = data.textArea?.statusUpdateDetails || "";
+  const latestStatusUpdate = extractPlainText(rawLatestUpdate);
 
-  // Previous updates ONLY from DB
   const previousStatusUpdates = [];
+  const seenTexts = new Set();
 
   for (const h of history) {
-    const text = (h.status_update_details || "").trim();
-    const OldStatus= normalizeStatus(h.status || "");
-    const currentStatus= normalizeStatus(data.radio.status)
-
+    const rawText = h.status_update_details || "";
+    const text = extractPlainText(rawText);
     if (!text) continue;
 
-    if(OldStatus !== currentStatus) continue
+    const oldStatus = normalizeStatus(h.status || "");
+    const currentStatus = normalizeStatus(data.radio.status);
+    if (oldStatus !== currentStatus) continue;
 
-    // skip duplicates
-    if (latestStatusUpdate && text === latestStatusUpdate) continue;
+    const normalizedLatest = extractPlainText(rawLatestUpdate).toLowerCase();
+    const normalizedText = text.toLowerCase();
 
-    previousStatusUpdates
-    .push({
-      text,
+    // ✅ exclude latest form update (CORRECT)
+    if (normalizedLatest && normalizedText === normalizedLatest) continue;
+
+    // ✅ skip duplicates
+    if (seenTexts.has(normalizedText)) continue;
+
+    seenTexts.add(normalizedText);
+
+    previousStatusUpdates.push({
+      text: rawText,
       updatedAt: h.updated_at,
     });
   }
@@ -268,7 +295,7 @@ const EmailTemplateLayout = ({ data }) => {
         </table>
       )}
       {/* LATEST STATUS UPDATE (GREEN) */}
-      {latestStatusUpdate && (
+      {data.statusUpdate === true && latestStatusUpdate?.length > 0 && (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <tbody>
             <tr>
@@ -285,26 +312,18 @@ const EmailTemplateLayout = ({ data }) => {
                 </div>
 
                 <div
-  style={{
-    backgroundColor: "#ECFDF5",
-    borderLeft: "3px solid #10B981",
-    padding: "12px",
-    borderRadius: "4px",
-    fontSize: "14px",
-    color: "#1F2937",
-  }}
->
-  <strong>Latest Update:</strong>{" "}
-  <span
-  dangerouslySetInnerHTML={{
-    __html: (latestStatusUpdate || "")
-      .replace(/<p[^>]*>/gi, "")
-      .replace(/<\/p>/gi, "")
-      .replace(/<div[^>]*>/gi, "")
-      .replace(/<\/div>/gi, "")
-  }}
-/>
-</div>
+                  style={{
+                    backgroundColor: "#ECFDF5",
+                    borderLeft: "3px solid #10B981",
+                    padding: "12px",
+                    borderRadius: "4px",
+                    fontSize: "14px",
+                    color: "#1F2937",
+                  }}
+                >
+                  <strong>Latest Update:</strong>{" "}
+                  <InlineHtml html={rawLatestUpdate} />
+                </div>
               </td>
             </tr>
           </tbody>

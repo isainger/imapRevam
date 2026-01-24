@@ -10,30 +10,35 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-async function sendIncidentEmail({ to, subject, html }) {
-  try {
-    // generate unique message id (prevents email threading)
-    const messageId = `<incident-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}@taboola.local>`;
+async function sendIncidentEmail({
+  to,
+  subject,
+  html,
+  messageId,     // ONLY for first email
+  inReplyTo,     // ONLY for follow-ups
+  references,    // ONLY for follow-ups
+}) {
+  const mailOptions = {
+    from: `"Incidents" <${process.env.SMTP_USER}>`,
+    to,
+    subject,
+    html,
+  };
 
-    const info = await transporter.sendMail({
-      from: `"Incidents" <${process.env.SMTP_USER}>`,
-      to,
-      subject,
-      html,
-
-      headers: {
-        "Message-ID": messageId,
-        "X-Entity-Ref-ID": messageId,
-      },
-    });
-
-    return info;
-  } catch (err) {
-    console.error("❌ Error sending email:", err);
-    throw err;
+  // FIRST EMAIL → owns the thread
+  if (messageId) {
+    mailOptions.messageId = messageId;
   }
+
+  // FOLLOW-UP EMAILS → reply to thread
+  if (inReplyTo) {
+    mailOptions.inReplyTo = inReplyTo;
+    mailOptions.references = references || inReplyTo;
+  }
+
+  const info = await transporter.sendMail(mailOptions);
+  return info;
 }
+
 
 module.exports = sendIncidentEmail;

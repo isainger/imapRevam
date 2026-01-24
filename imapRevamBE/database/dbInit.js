@@ -5,6 +5,7 @@ async function initDB() {
     CREATE TABLE IF NOT EXISTS incidents (
       id INT AUTO_INCREMENT PRIMARY KEY,
       display_id INT,
+      email_thread_id VARCHAR(255),
       known_issue VARCHAR(10),
       incident_number VARCHAR(100) NOT NULL,
       subject VARCHAR(1000) NOT NULL,

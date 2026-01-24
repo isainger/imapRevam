@@ -396,10 +396,15 @@ const Bar = () => {
           value.trim().length < 5
             ? "Incident Details must be at least 5 characters"
             : null,
-        statusUpdateDetails: (value, values) =>
-          values.statusUpdate === true && value.trim().length < 5
+        statusUpdateDetails: (value, values) => {
+          if (values.statusUpdate !== true) return null;
+
+          const plainText = stripHtml(value).trim();
+
+          return plainText.length < 5
             ? "Please provide status update (min 5 characters)"
-            : null,
+            : null;
+        },
         workaroundDetails: (value, values) =>
           values.radio.workaround === "Yes" && value.trim().length < 5
             ? "Please provide workaround update (min 5 characters)"
@@ -444,12 +449,17 @@ const Bar = () => {
     const restoredText = statusUpdateCacheRef.current[currentStatus] || "";
 
     form.setFieldValue("textArea.statusUpdateDetails", restoredText);
-    // form.setFieldValue("statusUpdate", false)
+    form.setFieldValue(
+      "statusUpdate",
+      stripHtml(restoredText).trim().length > 0
+    );
 
     prevStatusRef.current = currentStatus;
   }, [form.values.radio.status]);
 
   useEffect(() => {
+    if (originalIncident) return;
+
     const status = form.values.radio.status;
     const knownIssue = form.values.radio.known_issue;
 
@@ -690,22 +700,30 @@ const Bar = () => {
     setSuggestions(filtered);
   };
   const handleDateTimeChange = (fieldKey, date) => {
-    if (!date || isNaN(new Date(date).getTime())) return;
+    // 🔴 If cleared, clear BOTH local and utc
+    if (!date) {
+      form.setFieldValue(`dateTime.${fieldKey}`, {
+        local: null,
+        utc: null,
+      });
+      return;
+    }
 
     const fullDate = new Date(date);
+    if (isNaN(fullDate.getTime())) return;
 
     form.setFieldValue(`dateTime.${fieldKey}`, {
       local: fullDate,
-      utc: fullDate.toISOString(), // keep UTC consistent
+      utc: fullDate.toISOString(),
     });
   };
 
-  // const stripHtml = (html) => {
-  //   if (!html) return "";
-  //   const tmp = document.createElement("div");
-  //   tmp.innerHTML = html;
-  //   return tmp.textContent || tmp.innerText || "";
-  // };
+  const stripHtml = (html) => {
+    if (!html) return "";
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  };
 
   useEffect(() => {
     const selectedItem = form.values.dropDown.affectedProduct;
