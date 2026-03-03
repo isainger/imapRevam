@@ -26,17 +26,37 @@ const COLOR_MAP = {
     borderColor: "#3B82F6",
   },
 };
+const severity_colorMap={
+  Standard:{
+    color: "rgb(29, 78, 216)",
+    bgColor: "rgb(219, 234, 254)",
+    borderColor: "#BFDBFE",
+  },
+  High:{
+    color: "rgb(194, 65, 12)",
+    bgColor: "rgb(255, 237, 213)",
+    borderColor: "#FED7AA",
+  },
+  Emergency:{
+    color: "rgb(220, 38, 38)",
+    bgColor: "rgb(254, 226, 226)",
+    borderColor: "#FECACA",
+  }
+}
 
 /* NORMALIZATION FIX — exact flowImages key format */
 const normalizeForKey = (s = "") => s.toLowerCase().trim();
 
 const EmailTemplate = ({ data }) => {
+
+  // console.log(data);
+  
   /* REMAINING STATUS */
   const remaining = data.remainingStatus || [];
 
   const firstStatus = remaining.length > 0 ? remaining[0].statusName : "";
 
-  const currentStatus = data.showStatus || data.status;
+  const currentStatus = data.showStatus || data.incident_status;
 
   /* KNOWN ISSUE second image logic */
   const knownIssue = String(data.known_issue).toLowerCase() === "yes" ? 1 : 0;
@@ -54,8 +74,10 @@ const EmailTemplate = ({ data }) => {
   }
   let bannerImageSrc = null;
 
+
+
   if (currentStatus) {
-    const key = `Banner|${currentStatus}`;
+    const key = `${data.departmentName}|${currentStatus}`;
     const images = bannerFlow[key];
     if (images) {
       bannerImageSrc = images[0];
@@ -86,8 +108,8 @@ const EmailTemplate = ({ data }) => {
         const text = (h.status_update_details || "").trim();
         if (!text) continue;
       
-        const oldStatus = normalizeForKey(h.status || "");
-        const currentStatus = normalizeForKey(data.status);
+        const oldStatus = normalizeForKey(h.incident_status || "");
+        const currentStatus = normalizeForKey(data.incident_status);
       
         if (oldStatus !== currentStatus) continue;
       
@@ -288,7 +310,7 @@ const EmailTemplate = ({ data }) => {
     //   )
     // ),
     /* INSERTED FLOW IMAGE */
-    data.status != "Not an Issue" &&
+    data.incident_status != "Not an Issue" &&
       imageSrc &&
       React.createElement(
         "table",
@@ -462,12 +484,12 @@ const EmailTemplate = ({ data }) => {
             React.createElement(
               "div",
               { style: { fontWeight: "600", color: "#1F2937" } },
-              "The Taboola Incident Management Team"
+              "Taboola Incident Management Team"
             ),
             React.createElement(
               "div",
               { style: { fontSize: "12px", color: "#6B7280" } },
-              "support@taboola.com"
+              "IncidentManagement@taboola.com"
             )
           ),
           React.createElement(
@@ -545,9 +567,9 @@ const severity = (text) =>
         display: "inline-block",
         padding: "7px 14px",
         borderRadius: "5px",
-        backgroundColor: "#FEE2E2",
-        color: "#DC2626",
-        border: "1px solid #FECACA",
+        backgroundColor: severity_colorMap[text].bgColor,
+        color: severity_colorMap[text].color,
+        border: `1px solid ${severity_colorMap[text].borderColor}`,
         fontSize: "14px",
       },
     },

@@ -6,7 +6,7 @@ const sendIncidentEmail = require("./mailer/email");
 const { render } = require("@react-email/render");
 const React = require("react");
 const EmailTemplate = require("./mailer/emailTemplate"); // import your template
-const getRemainingStatus = require("./utils/getRemainingStatus");
+// const getRemainingStatus = require("./utils/getRemainingStatus");
 const { improveHtmlWithAI } = require("./services/aiService");
 const router = express.Router();
 // const generateHeaderPng = require("./utils/generateHeaderSvg");
@@ -68,7 +68,7 @@ app.post("/api/v1/incidents", async (req, res) => {
       created_at = new Date();
       updated_at = new Date();
     } else {
-      const statusChanged = lastRow.status !== newData.status;
+      const statusChanged = lastRow.incident_status !== newData.incident_status;
 
       if (statusChanged) {
         // status changed → reset lifecycle
@@ -88,12 +88,12 @@ app.post("/api/v1/incidents", async (req, res) => {
     display_id,
     known_issue,
     incident_number,
-    subject,
+    incident_subject,
     incident_link,
     performer,
     revenue_impact_details,
     departmentName,
-    status,
+    incident_status,
     remaining_status,
     incident_type,
     revenue_impact,
@@ -126,12 +126,12 @@ app.post("/api/v1/incidents", async (req, res) => {
         displayId,
         newData.known_issue,
         newData.incident_number,
-        newData.subject,
+        newData.incident_subject,
         newData.incident_link,
         newData.performer,
         newData.revenue_impact_details,
         newData.departmentName,
-        newData.status,
+        newData.incident_status,
         newData.remaining_status,
         newData.incident_type,
         newData.revenue_impact,
@@ -161,6 +161,7 @@ app.post("/api/v1/incidents", async (req, res) => {
     await pool.query("COMMIT");
 
     const displayLabel = `INC-${String(displayId).padStart(4, "0")}`;
+    const STATIC_TO = "parassingh964@gmail.com";
 
     const safeRemaining =
       typeof newData.remaining_status === "string"
@@ -174,7 +175,7 @@ app.post("/api/v1/incidents", async (req, res) => {
           display_id: displayLabel,
           history: historyRows,
           remainingStatus: safeRemaining,
-          showStatus: newData.status,
+          showStatus: newData.incident_status,
         },
       })
     );
@@ -194,12 +195,14 @@ app.post("/api/v1/incidents", async (req, res) => {
      WHERE incident_number = ?`,
         [emailThreadId, newData.incident_number]
       );
-      const revenueTag = newData.revenue_impact ? "[Revenue Impacted] " : "";
+      // const revenueTag = newData.revenue_impact ? "[Revenue Impacted] " : "";
 
       // 🔹 Send FIRST email
       await sendIncidentEmail({
-        to: "taboolaimaptest@gmail.com",
-        subject: `[Incident ${displayLabel}]: ${newData.subject}`,
+        to: STATIC_TO,
+        // bcc: newData.notification_mails || []
+        bcc: "taboolaimaptest@gmail.com",
+        subject: `[Incident ${displayLabel}]: ${newData.incident_subject}`,
         html,
         messageId: emailThreadId, // 🔥 ROOT MESSAGE
       });
@@ -208,11 +211,13 @@ app.post("/api/v1/incidents", async (req, res) => {
     // FOLLOW-UP EMAIL
     else {
       emailThreadId = lastRow.email_thread_id;
-      const revenueTag = newData.revenue_impact ? "[Revenue Impacted] " : "";
+      // const revenueTag = newData.revenue_impact ? "[Revenue Impacted] " : "";
 
       await sendIncidentEmail({
-        to: "taboolaimaptest@gmail.com",
-        subject: `Re: [Incident ${displayLabel}]: ${newData.subject}`,
+        to: STATIC_TO,
+        // bcc: newData.notification_mails || [],
+        bcc: "taboolaimaptest@gmail.com",
+        subject: `Re: [Incident ${displayLabel}]: ${newData.incident_subject}`,
         html,
         inReplyTo: emailThreadId,
         references: emailThreadId,
@@ -312,6 +317,7 @@ router.post("/improve", async (req, res) => {
 });
 
 app.post("/api/v1/incidents/department-change-email", async (req, res) => {
+  const STATIC_TO = "parassingh964@gmail.com";
   try {
     const { incidentNumber, fromDepartment, toDepartment, messageHtml } =
       req.body;
@@ -365,7 +371,7 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
     }
     // 🔹 Fetch thread id
     const [[threadRow]] = await pool.query(
-      `SELECT email_thread_id, display_id, subject
+      `SELECT email_thread_id, display_id, incident_subject
        FROM incidents
        WHERE incident_number = ?
        ORDER BY id ASC
@@ -380,8 +386,10 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
     }
 
     await sendIncidentEmail({
-      to: "taboolaimaptest@gmail.com",
-      subject: `Re: [Incident ${displayLabel}]: ${threadRow.subject}`,
+      to: STATIC_TO,
+      // bcc: oldNotificationMails,
+      bcc: "taboolaimaptest@gmail.com",
+      subject: `Re: [Incident ${displayLabel}]: ${threadRow.incident_subject}`,
       html,
       inReplyTo: threadRow.email_thread_id,
       references: threadRow.email_thread_id,

@@ -115,10 +115,10 @@ const Bar = () => {
         (originalIncident.revenue_impact || "") ||
       (current.radio.nextUpdate || "") !==
         (originalIncident.next_update || "") ||
-      ((current.radio.workaround || "") !==
+      (current.radio.workaround || "") !==
         (originalIncident.workaround || "") ||
-        current.radio.known_issue ||
-        "") !== (originalIncident.known_issue || "")
+      (current.radio.known_issue ||"") !== 
+        (originalIncident.known_issue || "")
     )
       return true;
 
@@ -834,11 +834,11 @@ const Bar = () => {
     const preparedPayload = {
       incident_number: incidentNumber,
       known_issue: form.values.radio.known_issue,
-      subject: form.values.inputBox.subject,
+      incident_subject: form.values.inputBox.subject,
       incident_link: form.values.inputBox.incidentLink,
       performer: form.values.inputBox.performer,
       departmentName: form.values.departmentName,
-      status: form.values.radio.status,
+      incident_status: form.values.radio.status,
       remaining_status:
         form.values.radio.status === "Not an Issue"
           ? JSON.stringify([])
@@ -989,20 +989,20 @@ const Bar = () => {
       form.setValues({
         ...form.values,
         departmentName: incident.departmentName,
-        disabledStatus: incident.status,
+        disabledStatus: incident.incident_status,
         inputBox: {
           ...form.values.inputBox,
           // inputNumber: incident.incident_number || "",
           inputNumber:
             form.values.inputBox.inputNumber || incident.incident_number || "",
-          subject: incident.subject || "",
+          subject: incident.incident_subject || "",
           incidentLink: incident.incident_link || "",
           performer: incident.performer || "",
           revenueImpactDetails: incident.revenue_impact_details || "",
         },
         radio: {
           ...form.values.radio,
-          status: incident.status || "",
+          status: incident.incident_status || "",
           remainingStatus: Array.isArray(incident.remaining_status)
             ? incident.remaining_status
             : JSON.parse(incident.remaining_status || "[]"),
@@ -1065,7 +1065,7 @@ const Bar = () => {
         },
         statusUpdate: incident.status_update_details ? true : false,
       });
-      prevStatusRef.current = incident.status;
+      prevStatusRef.current = incident.incident_status;
       setOriginalIncident({
         ...incident,
         remaining_status: Array.isArray(incident.remaining_status)
@@ -1537,7 +1537,7 @@ justify-between"
                           onChange: (val) =>
                             handleChange("textArea.incidentDetails", val), // replace default onChange
                         }}
-                        startingLine="Incident Details:"
+                        startingLine=""
                       />
 
                       {/* Status Radio Group */}
@@ -1838,11 +1838,14 @@ justify-between"
                       />
 
                       <DropdownBtn
-                        title="Level of Service Impact: "
+                        title="Impact Level: "
                         data={[
-                          "Tool Unavailability",
+                          "Reporting",
+                          "Partial Functionality",
+                          "Service Degradation",
                           "Intermittent",
-                          "Limited Functionality",
+                          "Complete Outage",
+                          "No Impact (Informational)"
                         ]}
                         inputProps={{
                           ...form.getInputProps("dropDown.serviceImpacted"), // keeps value, error, onBlur, etc.

@@ -1,6 +1,7 @@
 import React from "react";
 import getIncidentLabel from "./getIncidentLabel";
 import { formatDate } from "./formatDate";
+import incidentLogo from "../assets/incidentLogo.png"
 
 const COLOR_MAP = {
   suspected: {
@@ -24,6 +25,24 @@ const COLOR_MAP = {
     borderColor: "#3B82F6",
   },
 };
+
+const severity_colorMap={
+  Standard:{
+    color: "rgb(29, 78, 216)",
+    bgColor: "rgb(219, 234, 254)",
+    borderColor: "#BFDBFE",
+  },
+  High:{
+    color: "rgb(194, 65, 12)",
+    bgColor: "rgb(255, 237, 213)",
+    borderColor: "#FED7AA",
+  },
+  Emergency:{
+    color: "rgb(220, 38, 38)",
+    bgColor: "rgb(254, 226, 226)",
+    borderColor: "#FECACA",
+  }
+}
 
 const normalizeStatus = (status) => {
   if (!status) return "";
@@ -83,7 +102,9 @@ const EmailTemplateLayout = ({ data }) => {
   );
 
   // const incidentNumber = getIncidentLabel(data);
-  const incidentNumber = data.history[0]?.incident_number;
+  const incidentNumber = data.history.length > 0 && data.history[0].incident_number ?
+  data.history[0].incident_number
+  : data.inputBox.inputNumber;
 
   const history = data.history || [];
 
@@ -99,7 +120,7 @@ const EmailTemplateLayout = ({ data }) => {
     const text = extractPlainText(rawText);
     if (!text) continue;
 
-    const oldStatus = normalizeStatus(h.status || "");
+    const oldStatus = normalizeStatus(h.incident_status || "");
     const currentStatus = normalizeStatus(data.radio.status);
     if (oldStatus !== currentStatus) continue;
 
@@ -158,44 +179,92 @@ const EmailTemplateLayout = ({ data }) => {
     >
       {/* HEADER */}
       <table
-        style={{
-          width: "100%",
-          background: "linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)",
-        }}
-      >
-        <tbody>
-          <tr>
-            <td style={{ padding: "32px 28px" }}>
-              <div style={{ fontSize: "24px", color: "#FFFFFF" }}>
-                Incident Notification
-              </div>
-
-              {/* <div
-                style={{ fontSize: "13px", color: "#E0E7FF", marginTop: "4px" }}
-              >
-                <span style={{ color: "#BFDBFE" }}>Incident ID:</span>{" "}
-                {incidentNumber}
-              </div> */}
-
-              <div
+  width="100%"
+  cellPadding="0"
+  cellSpacing="0"
+  style={{
+    width: "100%",
+    background: "linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)",
+  }}
+>
+  <tbody>
+    <tr>
+      {/* OUTER PADDING */}
+      <td style={{ padding: "28px" }}>
+        <table width="100%" cellPadding="0" cellSpacing="0">
+          <tbody>
+            {/* ROW 1: Incident title (left) + Department (right) */}
+            <tr>
+              <td
+                valign="top"
                 style={{
-                  marginTop: "14px",
-                  display: "inline-block",
-                  // backgroundColor: colorCfg.bgColor,
-                  color: "#fff",
-                  border: `2px solid ${colorCfg.borderColor}`,
-                  padding: "6px 14px",
-                  borderRadius: "5px",
+                  fontSize: "24px",
+                  color: "#FFFFFF",
                   fontWeight: "700",
-                  fontSize: "14px",
                 }}
               >
-                {normalizedStatus.toUpperCase()}
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                Incident Notification
+              </td>
+
+              <td
+                valign="top"
+                align="right"
+                style={{
+                  fontSize: "18px",
+                  color: "#E0E7FF",
+                  textAlign: "right",
+                  fontWeight: "700",
+                }}
+              >
+                {data.departmentName}
+              </td>
+            </tr>
+
+            {/* ROW 2: Status (left) + Logo (right) */}
+            <tr>
+              <td style={{ paddingTop: "16px" }}>
+                <div
+                  style={{
+                    display: "inline-block",
+                    color: "#FFFFFF",
+                    border: `2px solid ${colorCfg.borderColor}`,
+                    padding: "6px 14px",
+                    borderRadius: "5px",
+                    fontWeight: "700",
+                    fontSize: "14px",
+                  }}
+                >
+                  {normalizedStatus.toUpperCase()}
+                </div>
+              </td>
+
+              <td
+                align="right"
+                style={{
+                  paddingTop: "16px",
+                  // textAlign: "right",
+                }}
+              >
+                <img
+                  src={incidentLogo}
+                  alt="Company Logo"
+                  width="100"
+                  style={{
+                    display: "block",
+                    border: "0",
+                    outline: "none",
+                    textDecoration: "none",
+                  }}
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 
       {/* TIMELINE */}
       {data.radio.status != "Not an Issue" && (
@@ -517,9 +586,9 @@ const EmailTemplateLayout = ({ data }) => {
                   display: "inline-block",
                   padding: "7px 14px",
                   borderRadius: "5px",
-                  backgroundColor: "rgb(254, 226, 226)",
-                  color: "rgb(220, 38, 38)",
-                  border: "1px solid #FECACA",
+                  backgroundColor: severity_colorMap[data.dropDown.severity].bgColor,
+                  color: severity_colorMap[data.dropDown.severity].color,
+                  border: `1px solid ${severity_colorMap[data.dropDown.severity].borderColor}`,
                   fontSize: "14px",
                 }}
               >
@@ -845,10 +914,10 @@ const EmailTemplateLayout = ({ data }) => {
           <tr>
             <td style={{ padding: "28px" }}>
               <div style={{ fontWeight: "600", color: "#1F2937" }}>
-                The Taboola Incident Management Team
+                Taboola Incident Management Team
               </div>
               <div style={{ fontSize: "12px", color: "#6B7280" }}>
-                support@taboola.com
+              IncidentManagement@taboola.com
               </div>
             </td>
             <td style={{ textAlign: "end", paddingRight: "10px" }}>

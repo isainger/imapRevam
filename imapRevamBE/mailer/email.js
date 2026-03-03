@@ -12,6 +12,7 @@ const transporter = nodemailer.createTransport({
 
 async function sendIncidentEmail({
   to,
+  bcc,
   subject,
   html,
   messageId,     // ONLY for first email
@@ -24,7 +25,9 @@ async function sendIncidentEmail({
     subject,
     html,
   };
-
+  if (bcc && bcc.length) {
+    mailOptions.bcc = bcc;
+  }
   // FIRST EMAIL → owns the thread
   if (messageId) {
     mailOptions.messageId = messageId;

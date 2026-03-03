@@ -8,12 +8,12 @@ async function initDB() {
       email_thread_id VARCHAR(255),
       known_issue VARCHAR(10),
       incident_number VARCHAR(100) NOT NULL,
-      subject VARCHAR(1000) NOT NULL,
+      incident_subject VARCHAR(1000) NOT NULL,
       incident_link TEXT NOT NULL,
       performer VARCHAR(255) NOT NULL,
       revenue_impact_details VARCHAR(1000),
       departmentName VARCHAR(50),
-      status VARCHAR(50),
+      incident_status VARCHAR(50),
       remaining_status JSON,
       incident_type VARCHAR(50),
       revenue_impact VARCHAR(10),
@@ -39,6 +39,8 @@ async function initDB() {
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       created_by INT NULL,
       updated_by INT NULL,
+      extra_field_1 VARCHAR(255) NULL,
+      extra_field_2 VARCHAR(255) NULL,
       KEY idx_incident_number (incident_number),
       KEY idx_display_id (display_id)
     ) ENGINE=InnoDB;
