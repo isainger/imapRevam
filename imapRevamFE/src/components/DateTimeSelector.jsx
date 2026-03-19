@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { DateTimePicker } from "@mantine/dates";
-import { Box, Group, Text, Title } from "@mantine/core";
+import { Box, Group, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { formatDate } from "../utils/formatDate";
 
@@ -8,7 +8,6 @@ const DateTimeSelector = (props) => {
   const { label, value, onChange, utcValue, checkBox, inputProps } = props;
   const [tempValue, setTempValue] = useState(value);
 
-  // Detect mobile
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
@@ -32,62 +31,98 @@ const DateTimeSelector = (props) => {
   };
 
   return (
-    <Group
-      spacing="lg"
-      w="100%"
-      justify="space-between"
-      direction={isMobile ? "column" : "row"}
-      align={isMobile ? "flex-start" : "center"}
-    >
+    <div style={{ width: "100%" }}>
       {/* Label */}
-      <Title
-        order={5}
-        ta="left"
-        w={isMobile ? "100%" : "24%"}
-      >
-        {label} <span style={{ color: "red" }}>*</span>
-      </Title>
+      <label className="imap-field-label" style={{ marginBottom: "7px" }}>
+        {label.replace(/\s*\(UTC\)\s*:?\s*$/, "").replace(/:\s*$/, "")}
+        {" "}
+        <span style={{ fontSize: "10px", fontWeight: 500, textTransform: "none", letterSpacing: 0, color: "#94a3b8" }}>
+          (UTC)
+        </span>
+        <span className="imap-required">*</span>
+      </label>
 
-      {/* Date + UTC Section */}
-      <Box
-        w={isMobile ? "100%" : "72%"}
-        display="flex"
-        style={{
-          flexDirection: isMobile ? "column" : "row",
-          justifyContent: isMobile ? "flex-start" : "space-evenly",
-          gap: isMobile ? "12px" : "0",
-        }}
+      {/* Picker row */}
+      <Group
+        spacing="lg"
+        w="100%"
+        justify="space-between"
+        direction={isMobile ? "column" : "row"}
+        align={isMobile ? "flex-start" : "center"}
       >
-        <DateTimePicker
-          classNames={{ input: "custom-input" }}
-          placeholder="Pick date and time"
-          value={tempValue}
-          onChange={handleTempChange}
-          radius="md"
-          w={isMobile ? "100%" : "50%"}
-          size="md"
-          clearable
-          withSeconds={false}
-          error={inputProps?.error}
-        />
-
         <Box
+          w={isMobile ? "100%" : "100%"}
           display="flex"
           style={{
+            flexDirection: isMobile ? "column" : "row",
+            justifyContent: isMobile ? "flex-start" : "space-between",
             alignItems: isMobile ? "flex-start" : "center",
+            gap: isMobile ? "10px" : "16px",
           }}
-          w={isMobile ? "100%" : "40%"}
         >
+          <DateTimePicker
+            classNames={{ input: "custom-input" }}
+            placeholder="Pick date and time"
+            value={tempValue}
+            onChange={handleTempChange}
+            radius="md"
+            w={isMobile ? "100%" : "52%"}
+            size="md"
+            clearable
+            withSeconds={false}
+            error={inputProps?.error}
+            styles={{
+              input: {
+                borderRadius: "10px",
+                fontSize: "13px",
+                fontFamily: "'Poppins', sans-serif",
+              },
+            }}
+          />
+
           {utcValue && (
-            <Text size="sm">
-              {formatDate(utcValue)}
-            </Text>
+            <Box
+              display="flex"
+              style={{
+                alignItems: "center",
+                flex: 1,
+              }}
+            >
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: "rgba(0, 86, 240, 0.06)",
+                  border: "1.5px solid rgba(0, 86, 240, 0.18)",
+                  borderRadius: "10px",
+                  padding: "8px 14px",
+                }}
+              >
+                <i
+                  className="fa-regular fa-clock"
+                  style={{ color: "#0056f0", fontSize: "14px", flexShrink: 0 }}
+                />
+                <Text
+                  size="sm"
+                  style={{
+                    fontFamily: "'Poppins', sans-serif",
+                    lineHeight: 1.4,
+                    color: "#334155",
+                    fontWeight: 500,
+                    fontSize: "13px",
+                  }}
+                >
+                  {formatDate(utcValue)}
+                </Text>
+              </div>
+            </Box>
           )}
         </Box>
-      </Box>
 
-      {checkBox}
-    </Group>
+        {checkBox}
+      </Group>
+    </div>
   );
 };
 

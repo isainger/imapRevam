@@ -31,19 +31,17 @@ const IncidentTxtBox = ({ inputProps, startingLine, context }) => {
     content: value || `<p>${startingLine}</p>`,
     onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
   });
-  // ✅ Keep editor in sync when `value` changes externally
+
   useEffect(() => {
     if (!editor) return;
 
     const html = value || `<p>${startingLine}</p>`;
 
-    // Only set content if different AND editor is not focused
     if (editor.getHTML() !== html && !editor.isFocused) {
       editor.commands.setContent(html);
     }
   }, [value, editor, startingLine]);
 
-  // Force rerender on editor state change to properly enable/disable Undo/Redo
   useEffect(() => {
     if (!editor) return;
 
@@ -66,23 +64,6 @@ const IncidentTxtBox = ({ inputProps, startingLine, context }) => {
     return tmp.textContent || tmp.innerText || "";
   };
 
-  // const getAiInstruction = (context) => {
-  //   switch (context) {
-  //     case "incident_details":
-  //       return "Rewrite clearly and professionally. Describe what happened, impact, and affected systems.";
-  //     case "status_update":
-  //       return "Rewrite as a short, clear status update with timeline awareness.";
-  //     case "resolution":
-  //       return "Rewrite confidently. Focus on final resolution and confirmation of fix.";
-  //     case "workaround":
-  //       return "Rewrite as clear step-by-step workaround instructions.";
-  //     case "resolutionRca":
-  //       return "Rewrite analytically. Explain cause and prevention.";
-  //     default:
-  //       return "Rewrite clearly and professionally.";
-  //   }
-  // };
-
   const handleImproveWithAI = async () => {
     try {
       setAiLoading(true);
@@ -102,7 +83,7 @@ const IncidentTxtBox = ({ inputProps, startingLine, context }) => {
   };
 
   const applyAiSuggestion = () => {
-    onChange?.(aiSuggestion); // ✅ already valid HTML
+    onChange?.(aiSuggestion);
     setAiOpen(false);
   };
 
@@ -126,70 +107,90 @@ const IncidentTxtBox = ({ inputProps, startingLine, context }) => {
       />
 
       <Card
-        shadow="md"
+        shadow="sm"
         radius="md"
         withBorder
         w="100%"
         p={0}
         className="custom-input"
         style={{
-          flexShrink: 0, // 🔥 prevents collapse
-          minHeight: 220, // 🔥 guarantees editor space
+          flexShrink: 0,
+          minHeight: 220,
+          border: "1.5px solid #e2e8f0",
+          borderRadius: "12px",
+          overflow: "hidden",
         }}
       >
+        {/* Top bar: AI button */}
         <div
-          style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            padding: "8px 12px 4px",
+            borderBottom: "1px solid #f1f5f9",
+            background: "#fafbfc",
+          }}
         >
           <button
             type="button"
             onClick={handleImproveWithAI}
-            style={{
-              fontSize: "16px",
-              color: "#2563eb",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              paddingRight: "1rem",
-              paddingBottom: "0.5rem",
-            }}
+            className={`imap-ai-btn${aiLoading ? " imap-ai-btn-loading" : ""}`}
           >
-            ✨ Improve with AI
+            {aiLoading ? (
+              <>
+                <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: "11px" }} />
+                <span>Improving…</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: "13px" }}>✨</span>
+                <span>Improve with AI</span>
+              </>
+            )}
           </button>
         </div>
+
+        {/* AI suggestion panel */}
         {aiOpen && (
           <div
             style={{
-              border: "1px solid #d1d5db",
-              borderRadius: 8,
-              padding: 12,
-              margin: "8px",
-              background: "#f9fafb",
+              border: "1px solid #e0e7ff",
+              borderRadius: "8px",
+              padding: "12px",
+              margin: "10px",
+              background: "linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%)",
             }}
           >
-            <Text size="sm" fw={600} mb={6}>
-              AI Suggested Improvement
+            <Text size="sm" fw={600} mb={6} c="#4f46e5">
+              ✨ AI Suggested Improvement
             </Text>
 
             <div
               style={{
-                fontSize: 16,
+                fontSize: 13,
                 color: "#111827",
-                marginBottom: 10,
+                marginBottom: 12,
+                lineHeight: 1.6,
               }}
               dangerouslySetInnerHTML={{ __html: aiSuggestion }}
             />
 
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 8 }}>
               <button
                 type="button"
                 onClick={applyAiSuggestion}
                 style={{
-                  padding: "6px 12px",
-                  background: "#2563eb",
+                  padding: "6px 14px",
+                  background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
                   color: "white",
-                  borderRadius: 6,
+                  borderRadius: "8px",
                   border: "none",
                   cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  fontFamily: "'Poppins', sans-serif",
+                  boxShadow: "0 2px 8px rgba(99,102,241,0.3)",
                 }}
               >
                 Apply
@@ -199,14 +200,18 @@ const IncidentTxtBox = ({ inputProps, startingLine, context }) => {
                 type="button"
                 onClick={() => setAiOpen(false)}
                 style={{
-                  padding: "6px 12px",
-                  background: "#e5e7eb",
-                  borderRadius: 6,
-                  border: "none",
+                  padding: "6px 14px",
+                  background: "#f1f5f9",
+                  color: "#64748b",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
                   cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  fontFamily: "'Poppins', sans-serif",
                 }}
               >
-                Cancel
+                Dismiss
               </button>
             </div>
           </div>
@@ -214,7 +219,7 @@ const IncidentTxtBox = ({ inputProps, startingLine, context }) => {
 
         <Stack>
           <RichTextEditor editor={editor} radius="md">
-            <RichTextEditor.Toolbar bg="transparent">
+            <RichTextEditor.Toolbar bg="transparent" style={{ borderBottom: "1px solid #f1f5f9" }}>
               <RichTextEditor.ControlsGroup>
                 <RichTextEditor.Undo />
                 <RichTextEditor.Redo />
@@ -289,8 +294,9 @@ const IncidentTxtBox = ({ inputProps, startingLine, context }) => {
           </RichTextEditor>
         </Stack>
       </Card>
+
       {error && (
-        <Text size="sm" c="red" mt="xs">
+        <Text size="sm" c="red" mt="xs" style={{ fontFamily: "'Poppins', sans-serif" }}>
           {error}
         </Text>
       )}

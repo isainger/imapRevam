@@ -8,10 +8,14 @@ const sslCA = fs.readFileSync("./cert.pem");
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "localhost",
+  port: process.env.DB_PORT || 3306,   // 👈 ADD THIS
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "test",
-  ssl: { ca: sslCA },
+  database: process.env.DB_NAME,
+  // ssl: { ca: sslCA },
+  ssl: {
+    rejectUnauthorized: false
+  },
   waitForConnections: true,
   connectionLimit: 10, // max simultaneous connections
   queueLimit: 0,

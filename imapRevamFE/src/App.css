@@ -1,1 +1,529 @@
 
+.imap-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 6.5rem;
+    padding: 0 20px;
+    background-color:#002852;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .imap-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  
+  .imap-logo {
+    height: 25px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+  }
+  
+  .imap-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .imap-app-name {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: rgba(255, 255, 255, 0.75);
+    text-transform: uppercase;
+  }
+  
+  .imap-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .imap-icon-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 15px;
+  }
+  .imap-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+  
+  .imap-avatar {
+    width: 32px;
+    height: 32px;
+    margin-left: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .imap-avatar:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+  }
+  
+  /* ═══════════════════════════════════════════
+     IMAP Hero Banner
+     ═══════════════════════════════════════════ 
+  
+  .imap-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 40px 24px 36px;
+    background: linear-gradient(135deg, #0040c1 0%, #0062e6 40%, #0080ff 100%);
+    text-align: center;
+    color: #fff;
+  }
+  
+  .imap-hero-glow {
+    position: absolute;
+    top: -60%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  
+  .imap-hero-content {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .imap-hero-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 10px;
+  }
+  
+  .imap-hero-title {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin: 0;
+  }
+  
+  .imap-hero-subtitle {
+    margin-top: 8px;
+    font-size: 15px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+  }*/
+
+  /* ═══════════════════════════════════════════
+   Smooth scrollbar for form
+   ═══════════════════════════════════════════ */
+
+section::-webkit-scrollbar {
+  width: 5px;
+}
+section::-webkit-scrollbar-track {
+  background: transparent;
+}
+section::-webkit-scrollbar-thumb {
+  background: rgba(0, 40, 82, 0.15);
+  border-radius: 10px;
+}
+section::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 40, 82, 0.3);
+}
+
+/* ═══════════════════════════════════════════
+   Sidebar scrollbar
+   ═══════════════════════════════════════════ */
+
+aside::-webkit-scrollbar {
+  width: 4px;
+}
+aside::-webkit-scrollbar-track {
+  background: transparent;
+}
+aside::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+aside::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ═══════════════════════════════════════════
+   Form field focus ring glow
+   ═══════════════════════════════════════════ */
+
+.custom-input:focus {
+  border-color: #0056f0;
+  box-shadow: 0 0 0 3px rgba(0, 86, 240, 0.1);
+  outline: none;
+}
+
+/* ═══════════════════════════════════════════
+   Smooth page transitions
+   ═══════════════════════════════════════════ */
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+form {
+  animation: fadeSlideUp 0.35s ease-out;
+}
+
+/* ═══════════════════════════════════════════
+   Mantine overrides for cohesive look
+   ═══════════════════════════════════════════ */
+
+.mantine-Select-dropdown,
+.mantine-Popover-dropdown {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 10px !important;
+}
+
+.mantine-Select-option[data-checked] {
+  background: #0056f0 !important;
+  color: #fff !important;
+}
+
+.mantine-Modal-content {
+  border-radius: 16px !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2) !important;
+}
+
+.mantine-Modal-header {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Card entrance animation */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+form { animation: fadeSlideUp 0.3s ease-out; }
+
+/* Smooth scrollbar for form */
+section::-webkit-scrollbar { width: 5px; }
+section::-webkit-scrollbar-track { background: transparent; }
+section::-webkit-scrollbar-thumb { background: rgba(0,40,82,0.12); border-radius: 10px; }
+section::-webkit-scrollbar-thumb:hover { background: rgba(0,40,82,0.25); }
+
+/* Sidebar scrollbar */
+aside::-webkit-scrollbar { width: 4px; }
+aside::-webkit-scrollbar-track { background: transparent; }
+aside::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+
+/* Mantine dropdown polish */
+.mantine-Select-dropdown,
+.mantine-Popover-dropdown {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
+  border-radius: 10px !important;
+}
+.mantine-Modal-content {
+  border-radius: 16px !important;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.18) !important;
+}
+
+/* ═══════════════════════════════════════════
+   IMAP Field Labels — elegant & consistent
+   ═══════════════════════════════════════════ */
+
+.imap-field-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #475569;
+  margin-bottom: 7px;
+  line-height: 1;
+}
+
+.imap-required {
+  color: #ef4444;
+  margin-left: 3px;
+  font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════
+   Radio Pill / Chip Selectors
+   ═══════════════════════════════════════════ */
+
+.imap-radio-field {
+  width: 100%;
+}
+
+.imap-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.imap-radio-group.vertical {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.imap-radio-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border-radius: 100px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  outline: none;
+  line-height: 1.2;
+  font-family: "Poppins", sans-serif;
+  white-space: nowrap;
+}
+
+.imap-radio-pill:hover:not(.disabled) {
+  border-color: rgba(0, 86, 240, 0.45);
+  color: #0056f0;
+  background: rgba(0, 86, 240, 0.04);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 86, 240, 0.1);
+}
+
+.imap-radio-pill.selected {
+  background: linear-gradient(135deg, #0056f0 0%, #003fc0 100%);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 86, 240, 0.35);
+  transform: translateY(-1px);
+  font-weight: 600;
+}
+
+.imap-radio-pill.selected:hover {
+  box-shadow: 0 6px 20px rgba(0, 86, 240, 0.45);
+  transform: translateY(-2px);
+}
+
+.imap-radio-pill.disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.imap-radio-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.imap-radio-error {
+  font-size: 11.5px;
+  color: #ef4444;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════
+   Status Update Toggle Button
+   ═══════════════════════════════════════════ */
+
+.imap-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  border: 1.5px dashed #cbd5e1;
+  background: transparent;
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  font-family: "Poppins", sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.imap-toggle-btn:hover {
+  border-color: #0056f0;
+  border-style: solid;
+  color: #0056f0;
+  background: rgba(0, 86, 240, 0.04);
+  box-shadow: 0 4px 12px rgba(0, 86, 240, 0.1);
+  transform: translateY(-1px);
+}
+
+.imap-toggle-btn.active {
+  border-style: solid;
+  border-color: #0056f0;
+  color: #0056f0;
+  background: rgba(0, 86, 240, 0.06);
+}
+
+.imap-toggle-btn.active:hover {
+  background: rgba(0, 86, 240, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 86, 240, 0.12);
+}
+
+/* ═══════════════════════════════════════════
+   AI Improve Button
+   ═══════════════════════════════════════════ */
+
+.imap-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(99, 102, 241, 0.28);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(139, 92, 246, 0.06) 100%);
+  color: #6366f1;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  font-family: "Poppins", sans-serif;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.imap-ai-btn:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.2);
+  transform: translateY(-1px);
+}
+
+.imap-ai-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.imap-ai-btn-loading {
+  opacity: 0.7;
+  cursor: wait;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════
+   Revenue / Textarea field wrapper
+   ═══════════════════════════════════════════ */
+
+.imap-textarea-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.imap-textarea-field .mantine-Textarea-input {
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+  font-family: "Poppins", sans-serif !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+  background: #ffffff !important;
+}
+
+.imap-textarea-field .mantine-Textarea-input:focus {
+  border-color: #0056f0 !important;
+  box-shadow: 0 0 0 3px rgba(0, 86, 240, 0.1) !important;
+}
+
+/* ═══════════════════════════════════════════
+   Mantine input polish (TextInput, Select, Autocomplete, DateTimePicker, TagsInput)
+   ═══════════════════════════════════════════ */
+
+.mantine-TextInput-input,
+.mantine-Autocomplete-input,
+.mantine-DateTimePicker-input {
+  border-radius: 10px !important;
+  font-family: "Poppins", sans-serif !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.mantine-Select-input {
+  border-radius: 10px !important;
+  font-family: "Poppins", sans-serif !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+/* ═══ Back Button — shimmer + hover glow ═══ */
+
+.imap-back-btn {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.imap-back-btn:hover {
+  background: linear-gradient(135deg, rgba(0,86,240,0.15) 0%, rgba(0,240,210,0.08) 100%) !important;
+  border-color: rgba(0,86,240,0.35) !important;
+  box-shadow: 0 6px 28px rgba(0,86,240,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+  transform: translateX(2px);
+}
+
+.imap-back-btn:hover .relative {
+  background: linear-gradient(135deg, #0056f0, #0040c0) !important;
+  box-shadow: 0 0 20px rgba(0,86,240,0.5);
+}
+
+.imap-back-btn:hover .ml-auto {
+  background: #00f0d2 !important;
+  box-shadow: 0 0 12px rgba(0,240,210,0.6);
+}
+
+.imap-back-btn:active {
+  transform: translateX(0) scale(0.98);
+}
+
+.imap-back-shimmer {
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.06) 45%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 55%, transparent 70%);
+  background-size: 250% 100%;
+  background-position: 200% 0;
+  transition: background-position 0s;
+}
+
+.imap-back-btn:hover .imap-back-shimmer {
+  background-position: -100% 0;
+  transition: background-position 0.8s ease;
+}
+

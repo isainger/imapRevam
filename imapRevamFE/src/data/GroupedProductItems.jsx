@@ -30,6 +30,10 @@ const groupedProductOptions = [
         "Recommendations service - Widgets",
         "Recommendations service SDK",
         "Rev Loss",
+        "Header Bidding - General Performance Drop",
+        "Header Bidding - Demand Drop",
+        "Header Bidding - Supply Drop",
+        "Header Bidding - Win Rate Drop"
       ],
     },
     {
@@ -80,7 +84,7 @@ const groupedProductOptions = [
     // },
     // { group: "MSFT", items: ["MSFT Validation"] },
     // { group: "Other", items: ["Other"] },
-    { group: "Header Bidding", items: ["Header Bidding/Bidder"] },
+    // { group: "Header Bidding", items: ["Header Bidding/Bidder"] },
     // { group: "test", items: ["Test"] },
   ];
   

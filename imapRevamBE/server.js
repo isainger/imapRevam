@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const initDB = require("./database/dbInit");
+// const initDB = require("./database/dbInit");
 const pool = require("./database/db");
 const sendIncidentEmail = require("./mailer/email");
 const { render } = require("@react-email/render");
@@ -16,9 +16,11 @@ app.use(cors());
 app.use(express.json());
 app.use("/api/v1/ai", router);
 
-(async () => {
-  await initDB();
-})();
+// (async () => {
+//   await initDB();
+// })();
+
+
 // ------- API---------------
 app.post("/api/v1/incidents", async (req, res) => {
   const newData = req.body;
@@ -161,14 +163,14 @@ app.post("/api/v1/incidents", async (req, res) => {
     await pool.query("COMMIT");
 
     const displayLabel = `INC-${String(displayId).padStart(4, "0")}`;
-    const STATIC_TO = "parassingh964@gmail.com";
+    const STATIC_TO = "isainger29@gmail.com";
 
     const safeRemaining =
       typeof newData.remaining_status === "string"
         ? JSON.parse(newData.remaining_status)
         : newData.remaining_status;
 
-    const html = await render(
+    let html = await render(
       React.createElement(EmailTemplate, {
         data: {
           ...newData,
@@ -178,6 +180,11 @@ app.post("/api/v1/incidents", async (req, res) => {
           showStatus: newData.incident_status,
         },
       })
+    );
+    // Inject color-scheme meta tags for dark mode — tells Gmail/Apple Mail to stay in light mode
+    html = html.replace(
+      "</head>",
+      '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>'
     );
     // ,"parassingh964@gmail.com"
 
@@ -230,6 +237,55 @@ app.post("/api/v1/incidents", async (req, res) => {
       await pool.query("ROLLBACK");
     }
     console.error("❌ Error inserting incident:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// -------- RECIPIENTS PAGE (linked from email) --------
+app.get("/api/v1/incidents/:incident_number/recipients", async (req, res) => {
+  try {
+    let { incident_number } = req.params;
+    incident_number = incident_number.trim();
+
+    let rows = [];
+
+    // Support INC-0001 format
+    if (/^INC-\d+$/i.test(incident_number)) {
+      const displayId = parseInt(incident_number.replace(/INC-/i, ""), 10);
+      [rows] = await pool.query(
+        "SELECT notification_mails, incident_subject, incident_status, display_id FROM incidents WHERE display_id = ? ORDER BY id DESC LIMIT 1",
+        [displayId]
+      );
+    } else {
+      [rows] = await pool.query(
+        "SELECT notification_mails, incident_subject, incident_status, display_id FROM incidents WHERE incident_number = ? ORDER BY id DESC LIMIT 1",
+        [incident_number]
+      );
+    }
+
+    if (!rows.length) {
+      return res.status(404).json({ error: "Incident not found" });
+    }
+
+    const row = rows[0];
+    let recipients = [];
+    try {
+      recipients =
+        typeof row.notification_mails === "string"
+          ? JSON.parse(row.notification_mails)
+          : row.notification_mails || [];
+    } catch (e) {
+      recipients = [];
+    }
+
+    res.json({
+      display_id: `INC-${String(row.display_id).padStart(4, "0")}`,
+      incident_subject: row.incident_subject,
+      incident_status: row.incident_status,
+      recipients,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching recipients:", err);
     res.status(500).json({ error: "Database error" });
   }
 });
@@ -354,23 +410,18 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
       oldNotificationMails = [];
     }
 
-    const html = `
-      <p><strong>Incident:</strong> ${incidentNumber}</p>
-      <p>
-        <strong>Department Change:</strong>
-        ${fromDepartment} → ${toDepartment}
-      </p>
-      <hr />
-      ${messageHtml || "<p>No additional message provided.</p>"}
-    `;
+    const FONT = '"Poppins", Arial, sans-serif';
 
-    if (!oldNotificationMails || oldNotificationMails.length === 0) {
-      return res.status(400).json({
-        error: "No previous notification emails found",
-      });
-    }
-    // 🔹 Fetch thread id
-    const [[threadRow]] = await pool.query(
+    const sanitizeHtml = (input) => {
+      if (!input) return "";
+      return String(input)
+        .replace(/<p>/gi, '<div style="margin:0 0 8px 0;">')
+        .replace(/<\/p>/gi, "</div>")
+        .replace(/<strong>/gi, '<strong style="font-weight:600;">');
+    };
+
+     // 🔹 Fetch thread id
+     const [[threadRow]] = await pool.query(
       `SELECT email_thread_id, display_id, incident_subject
        FROM incidents
        WHERE incident_number = ?
@@ -385,6 +436,216 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
       throw new Error("Email thread not found for incident");
     }
 
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+</head>
+<body style="margin:0;padding:0;background-color:#F3F4F6;-webkit-text-size-adjust:100%;mso-line-height-rule:exactly;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F3F4F6;padding:32px 16px;">
+  <tr><td align="center">
+
+    <!-- ── CARD ── -->
+    <table width="650" cellpadding="0" cellspacing="0" border="0" style="max-width:650px;width:100%;background-color:#ffffff;border:1px solid #E5E7EB;font-family:Arial,sans-serif;">
+      <tr>
+
+        <!-- ── HEADER ── -->
+        <!-- Note: gradient is a best-effort; mso fallback is dark blue -->
+        <td style="background-color:#1E3A8A;background-image:linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%);padding:0;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <!-- Title block -->
+              <td width="70%" valign="top" style="padding:28px 0 28px 36px;">
+                <p style="margin:0;font-size:21px;font-weight:bold;color:#ffffff;font-family:Arial,sans-serif;letter-spacing:-0.3px;line-height:1.2;">
+                  Department Change Notice
+                </p>
+                <p style="margin:6px 0 0 0;font-size:12px;color:#BFDBFE;font-family:Arial,sans-serif;line-height:1.4;">
+                  Incident Management &nbsp;&middot;&nbsp; Taboola
+                </p>
+              </td>
+              <!-- Badge -->
+              <td width="30%" valign="top" align="right" style="padding:28px 36px 28px 0;">
+                <table cellpadding="0" cellspacing="0" border="0" align="right">
+                  <tr>
+                    <td style="background-color:#2563EB;border:1px solid #93C5FD;border-radius:6px;padding:6px 14px;">
+                      <span style="font-size:11px;font-weight:bold;color:#ffffff;font-family:Arial,sans-serif;letter-spacing:0.8px;text-transform:uppercase;white-space:nowrap;">
+                        Dept. Transfer
+                      </span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+
+      </tr>
+
+      <!-- ── INCIDENT META STRIP ── -->
+      <tr>
+        <td style="background-color:#F8FAFC;border-bottom:1px solid #E5E7EB;padding:13px 36px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="font-size:11px;font-weight:bold;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">
+                Incident
+              </td>
+              <td align="right">
+                <span style="font-size:13px;font-weight:bold;color:#111827;font-family:Arial,sans-serif;">${displayLabel}</span>
+                <span style="font-size:13px;color:#9CA3AF;font-family:Arial,sans-serif;">&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span>
+                <span style="font-size:13px;color:#6B7280;font-family:Arial,sans-serif;">${threadRow.incident_subject || incidentNumber}</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- ── DEPARTMENT TRANSFER SECTION ── -->
+      <tr>
+        <td style="padding:28px 36px 8px 36px;">
+          <p style="margin:0 0 16px 0;font-size:11px;font-weight:bold;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">
+            Department Transfer
+          </p>
+
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+
+              <!-- FROM card -->
+              <td width="44%" valign="middle" style="background-color:#FFFBEB;border:2px solid #FCD34D;border-radius:10px;padding:16px 12px;text-align:center;">
+                <p style="margin:0 0 6px 0;font-size:10px;font-weight:bold;color:#92400E;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">
+                  From
+                </p>
+                <p style="margin:0;font-size:17px;font-weight:bold;color:#B45309;font-family:Arial,sans-serif;">
+                  ${fromDepartment}
+                </p>
+              </td>
+
+              <!-- ARROW -->
+              <td width="12%" valign="middle" align="center" style="padding:0 6px;">
+                <table cellpadding="0" cellspacing="0" border="0" align="center">
+                  <tr>
+                    <td width="38" height="38" align="center" valign="middle" style="background-color:#EFF6FF;border:2px solid #BFDBFE;border-radius:50%;width:38px;height:38px;">
+                      <span style="font-size:18px;color:#2563EB;font-family:Arial,sans-serif;line-height:1;">&#8594;</span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+
+              <!-- TO card -->
+              <td width="44%" valign="middle" style="background-color:#EFF6FF;border:2px solid #93C5FD;border-radius:10px;padding:16px 12px;text-align:center;">
+                <p style="margin:0 0 6px 0;font-size:10px;font-weight:bold;color:#1E40AF;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">
+                  To
+                </p>
+                <p style="margin:0;font-size:17px;font-weight:bold;color:#1D4ED8;font-family:Arial,sans-serif;">
+                  ${toDepartment}
+                </p>
+              </td>
+
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- ── MESSAGE BODY ── -->
+      ${messageHtml ? `
+      <tr>
+        <td style="padding:24px 36px 8px 36px;">
+          <p style="margin:0 0 10px 0;font-size:11px;font-weight:bold;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">
+            Message from the Incident Owner
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td width="3" style="background-color:#2563EB;border-radius:3px;">&nbsp;</td>
+              <td style="background-color:#F8FAFC;padding:14px 18px;font-size:14px;color:#374151;line-height:1.7;font-family:Arial,sans-serif;">
+                ${sanitizeHtml(messageHtml)}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>` : `
+      <tr>
+        <td style="padding:24px 36px 8px 36px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="background-color:#F8FAFC;border:1px dashed #D1D5DB;border-radius:8px;padding:14px 18px;font-size:13px;color:#9CA3AF;text-align:center;font-family:Arial,sans-serif;">
+                No additional message was provided.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`}
+
+      <!-- ── INFO NOTE (table-based, no flex) ── -->
+      <tr>
+        <td style="padding:20px 36px 28px 36px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="background-color:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:12px 16px;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td width="22" valign="top" style="font-size:14px;color:#92400E;font-family:Arial,sans-serif;padding-right:8px;">
+                      &#9888;
+                    </td>
+                    <td style="font-size:12px;color:#92400E;line-height:1.6;font-family:Arial,sans-serif;">
+                      This incident has been reassigned. Please ensure your team is aware of the ownership change and update any internal tracking accordingly.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- ── FOOTER ACCENT LINE ── -->
+      <tr>
+        <td height="2" style="background-color:#2563EB;background-image:linear-gradient(90deg,#1E3A8A,#3B82F6);font-size:0;line-height:0;">&nbsp;</td>
+      </tr>
+
+      <!-- ── FOOTER BODY ── -->
+      <tr>
+        <td style="background-color:#F9FAFB;padding:18px 36px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td valign="middle">
+                <p style="margin:0;font-size:13px;font-weight:bold;color:#111827;font-family:Arial,sans-serif;">Taboola Incident Management</p>
+                <p style="margin:3px 0 0 0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">IncidentManagement@taboola.com</p>
+              </td>
+              <td valign="middle" align="right">
+                <p style="margin:0;font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Incident ID</p>
+                <p style="margin:3px 0 0 0;font-size:13px;font-weight:bold;color:#111827;font-family:Arial,sans-serif;">${displayLabel}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- ── DISCLAIMER ── -->
+      <tr>
+        <td style="background-color:#F3F4F6;padding:12px 36px;text-align:center;">
+          <p style="margin:0;font-size:10px;color:#9CA3AF;font-family:Arial,sans-serif;">
+            This is an automated notification from Taboola Incident Management Platform
+          </p>
+        </td>
+      </tr>
+
+    </table>
+    <!-- end card -->
+
+  </td></tr>
+</table>
+</body>
+</html>`;
+
+    if (!oldNotificationMails || oldNotificationMails.length === 0) {
+      return res.status(400).json({
+        error: "No previous notification emails found",
+      });
+    }
+   
     await sendIncidentEmail({
       to: STATIC_TO,
       // bcc: oldNotificationMails,

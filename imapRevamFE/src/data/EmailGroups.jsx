@@ -100,6 +100,9 @@ const emailGroups = {
     "pub-ams-us-open@taboola.com",
     "pub-sales-us-smb@taboola.com",
     "pub-ams-us-smb@taboola.com",
+    "bid-ops-emergency@taboola.com",
+    "ps-ads-global-tech-solutions@taboola.com",
+    "bid-ops-optimization@taboola.com",
   ],
   Advertiser: [
     "media-ams-uk-enterprise@taboola.com",
@@ -131,11 +134,6 @@ const emailGroups = {
     "ps-ads-sme-apac@taboola.com",
     "ps-ads-se-apac@taboola.com",
     "apac-ent-manager@taboola.com",
-  ],
-  "Header Bidding": [
-    "bid-ops-emergency@taboola.com",
-    "ps-ads-global-tech-solutions@taboola.com",
-    "bid-ops-optimization@taboola.com",
   ],
 };
 export default emailGroups

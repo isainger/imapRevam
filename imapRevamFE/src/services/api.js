@@ -7,4 +7,5 @@ export const endpoints = {
   FETCHALLINCIDENTS_API: BASE_URL + "/incidents",
   AI_IMPROVE_API: BASE_URL + "/ai/improve",
   DEPARTMENT_CHANGE_EMAIL_API: BASE_URL + "/incidents/department-change-email",
+  FETCH_RECIPIENTS_API: (incident_id) => `${BASE_URL}/incidents/${incident_id}/recipients`,
 };

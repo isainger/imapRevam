@@ -1,188 +1,277 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+/* ── Animated counter ── */
 const AnimatedNumber = ({ value, duration = 800 }) => {
   const [display, setDisplay] = useState(0);
+  const rafRef = useRef(null);
 
   useEffect(() => {
-    if (!value || value <= 0) {
-      setDisplay(0);
-      return;
-    }
-    let start = 0;
-    const stepTime = Math.max(Math.floor(duration / value), 20);
+    const start = display;
+    const diff = value - start;
+    if (diff === 0) return;
+    const startTime = performance.now();
 
-    const timer = setInterval(() => {
-      start += 1;
-      setDisplay(start);
+    const tick = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(start + diff * eased));
+      if (progress < 1) rafRef.current = requestAnimationFrame(tick);
+    };
 
-      if (start >= value) clearInterval(timer);
-    }, stepTime);
-
-    return () => clearInterval(timer);
-  }, [value, duration]);
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [value]);
 
   return <span>{display}</span>;
 };
 
-const StatCard = ({ label, value, color, icon }) => {
+/* ── Single stat card ── */
+const StatCard = ({ icon, label, value, accent, glowColor, pulse }) => {
+  const [hovered, setHovered] = useState(false);
+
   return (
     <div
-      className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center justify-center gap-2 transition hover:shadow-lg"
-      style={{ borderTop: `4px solid ${color}` }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="relative flex items-center gap-5 px-7 py-5 rounded-2xl transition-all duration-300 cursor-default select-none flex-1 min-w-[180px]"
+      style={{
+        background: hovered
+          ? "rgba(255,255,255,0.14)"
+          : "rgba(255,255,255,0.06)",
+        backdropFilter: "blur(12px)",
+        border: `1px solid ${hovered ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)"}`,
+        transform: hovered ? "translateY(-3px)" : "translateY(0)",
+        boxShadow: hovered
+          ? `0 12px 32px ${glowColor || "rgba(0,86,240,0.3)"}`
+          : "0 2px 10px rgba(0,0,0,0.2)",
+      }}
     >
-      <div className="text-2xl text-slate-500">{icon}</div>
-
-      <div className="text-4xl font-bold text-slate-900">
-        <AnimatedNumber value={value} />
+      {/* Icon badge */}
+      <div
+        className="relative flex items-center justify-center w-14 h-14 rounded-xl transition-transform duration-300"
+        style={{
+          background: `linear-gradient(135deg, ${accent}40, ${accent}20)`,
+          border: `1px solid ${accent}55`,
+          transform: hovered ? "scale(1.1)" : "scale(1)",
+        }}
+      >
+        <i className={`${icon} text-xl`} style={{ color: accent }} />
+        {pulse && (
+          <span
+            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full"
+            style={{ background: accent }}
+          >
+            <span
+              className="absolute inset-0 rounded-full animate-ping"
+              style={{ background: accent, opacity: 0.5 }}
+            />
+          </span>
+        )}
       </div>
 
-      <div className="text-sm text-slate-600 font-medium">{label}</div>
+      {/* Text */}
+      <div className="flex flex-col">
+        <span className="text-xs uppercase tracking-wider text-white/45 font-semibold leading-none mb-2">
+          {label}
+        </span>
+        <span
+          className="text-4xl font-extrabold leading-none transition-colors duration-300"
+          style={{ color: accent }}
+        >
+          <AnimatedNumber value={value} />
+        </span>
+      </div>
     </div>
   );
 };
 
+/* ── Ongoing‐incidents tooltip (portal) ── */
+const OngoingTooltip = ({ incidents, anchorRef }) => {
+  const [pos, setPos] = useState(null);
+
+  useEffect(() => {
+    if (!anchorRef?.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    setPos({ bottom: window.innerHeight - rect.top + 12, left: rect.left });
+  }, [incidents]);
+
+  if (!pos || !incidents.length) return null;
+
+  return createPortal(
+    <div
+      className="fixed z-[9999] w-80 rounded-xl shadow-2xl border border-white/10 overflow-hidden"
+      style={{
+        bottom: pos.bottom,
+        left: pos.left,
+        background: "linear-gradient(135deg, #002852 0%, #003f7f 100%)",
+      }}
+    >
+      <div className="px-4 py-3 border-b border-white/10">
+        <span className="text-xs uppercase tracking-wider text-white/50 font-semibold">
+          Active Incidents
+        </span>
+      </div>
+      <div className="max-h-56 overflow-y-auto">
+      {console.log(incidents)}
+        {incidents.map((inc, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors"
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 animate-pulse" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">
+                {inc.incident_number || "N/A"}
+              </p>
+              <p className="text-xs text-white/40 truncate">
+                {inc.incident_subject|| "No title"}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+/* ── Main component ── */
 const StatsOverview = ({ incidents }) => {
-  const [showOngoingTooltip, setShowOngoingTooltip] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [showTooltip, setShowTooltip] = useState(false);
   const ongoingRef = useRef(null);
-  let hideTimeout = useRef(null);
 
-  const resolvedStatuses = ["Resolved", "Resolved with RCA"];
-  const ongoingStatuses = ["Ongoing", "Suspected"];
+  // Deduplicate by incident_number
+  const latestIncidentsMap = incidents.reduce((acc, inc) => {
+    const key = inc.incident_number;
+    if (!key) return acc;
+  
+    const existing = acc[key];
+  
+    // Decide "latest" using timestamp
+    const currentTime = new Date(inc.created_at ||  inc.updated_at ||  0).getTime();
+    const existingTime = existing
+      ? new Date(existing.created_at || existing.updated_at || 0).getTime()
+      : 0;
+  
+    if (!existing || currentTime > existingTime) {
+      acc[key] = inc;
+    }
+  
+    return acc;
+  }, {});
+  
+  const unique = Object.values(latestIncidentsMap);
 
-  const incidentsMap = {};
-
-  const showOngoing = () => {
-    clearTimeout(hideTimeout.current);
-
-    const rect = ongoingRef.current.getBoundingClientRect();
-
-    setCoords({
-      top: rect.top + window.scrollY - 12, // slightly above card
-      left: rect.left + window.scrollX + rect.width / 2, // center
-    });
-
-    setShowOngoingTooltip(true);
+  const normalizeStatus = (status) => {
+    
+    if (!status) return "ignore";
+  
+    const s = status.toLowerCase().trim();
+    
+    if (["resolved", "resolved with rca"].includes(s)) return "resolved";
+    if (["ongoing", "suspected"].includes(s)) return "ongoing";
+    if (s === "not an issue") return "ignore";
+  
+    return "ignore";
   };
-
-  const hideOngoing = () => {
-    hideTimeout.current = setTimeout(() => {
-      setShowOngoingTooltip(false);
-    }, 100);
-  };
-
-  incidents.forEach(({ incident_number, status, subject }) => {
-    if (!incidentsMap[incident_number]) {
-      incidentsMap[incident_number] = {
-        subject,
-        hasOngoing: false,
-        hasResolved: false,
-      };
-    }
-
-    if (resolvedStatuses.includes(status)) {
-      incidentsMap[incident_number].hasResolved = true;
-    }
-    if (ongoingStatuses.includes(status)) {
-      incidentsMap[incident_number].hasOngoing = true;
-    }
-  });
-
-  const totalIncidents = Object.keys(incidentsMap).length;
-
-  let ongoingCounter = 0;
-  let resolvedCounter = 0;
-
-  Object.values(incidentsMap).forEach(({ hasOngoing, hasResolved }) => {
-    if (hasResolved) resolvedCounter++;
-    else if (hasOngoing) ongoingCounter++;
-  });
-
-  const openIncidentSubjects = Object.values(incidentsMap)
-    .filter((i) => i.hasOngoing && !i.hasResolved)
-    .map((i) => i.subject);
-
-  // const totalFormsFilled = incidents.length;
+  
+  // classify
+  const classified = unique.map((i) => ({
+    ...i,
+    normalizedStatus: normalizeStatus(i.incident_status),
+  }));
+  
+  // remove ignored ones
+  const validIncidents = classified.filter(
+    (i) => i.normalizedStatus !== "ignore"
+  );
+  
+  // split
+  const ongoing = validIncidents.filter(
+    (i) => i.normalizedStatus === "ongoing"
+  );
+  
+  const resolved = validIncidents.filter(
+    (i) => i.normalizedStatus === "resolved"
+  );
+  
+  // final count
+  const total = validIncidents.length;
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-10 w-full max-w-6xl mx-auto">
-      <StatCard
-        label="Total Incidents"
-        value={totalIncidents}
-        color="#6366f1"
-        icon={<i className="fa-solid fa-database" />}
-      />
+    <div
+      className="rounded-2xl px-5 py-4 transition-all duration-500"
+      style={{
+        background: "linear-gradient(135deg, #001e3d 0%, #002852 50%, #003052 100%)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        boxShadow:
+          "0 -6px 40px rgba(0,40,82,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
+      }}
+    >
+      <div className="flex items-center gap-5">
+        {/* Brand mark */}
+        <div className="flex items-center gap-3 pl-2 shrink-0">
+          <div
+            className="w-2 h-12 rounded-full"
+            style={{
+              background: "linear-gradient(180deg, #0056f0, #00f0d2)",
+            }}
+          />
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-semibold">
+              Live
+            </span>
+            <span className="text-sm uppercase tracking-[0.15em] text-white/60 font-bold">
+              Stats
+            </span>
+          </div>
+        </div>
 
-      <div
-        ref={ongoingRef}
-        className="inline-block"
-        onMouseEnter={showOngoing}
-        onMouseLeave={hideOngoing}
-      >
-        <StatCard
-          label="Ongoing Incidents"
-          value={ongoingCounter}
-          color="#ef4444"
-          icon={<i className="fa-solid fa-circle-notch" />}
-        />
+        {/* Divider */}
+        <div className="w-px h-14 bg-white/10 shrink-0" />
+
+        {/* Cards row */}
+        <div className="flex items-center gap-4 flex-1">
+          <StatCard
+            icon="fa-solid fa-layer-group"
+            label="Total Incidents"
+            value={total}
+            accent="#0056f0"
+            glowColor="rgba(0,86,240,0.25)"
+          />
+
+          <div
+            ref={ongoingRef}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+            className="flex-1"
+          >
+            <StatCard
+              icon="fa-solid fa-bolt"
+              label="Ongoing"
+              value={ongoing.length}
+              accent="#f59e0b"
+              glowColor="rgba(245,158,11,0.25)"
+              pulse
+            />
+          </div>
+
+          <StatCard
+            icon="fa-solid fa-circle-check"
+            label="Resolved"
+            value={resolved.length}
+            accent="#00f0d2"
+            glowColor="rgba(0,240,210,0.25)"
+          />
+        </div>
       </div>
 
-      <StatCard
-        label="Resolved Incidents"
-        value={resolvedCounter}
-        color="#22c55e"
-        icon={<i className="fa-solid fa-circle-check" />}
-      />
-
-      {showOngoingTooltip &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              top: coords.top,
-              left: coords.left,
-              transform: "translate(-50%, -100%)", // ← KEY LINE
-              width: 300,
-              maxHeight: 280,
-              background: "#f0f4f8",
-              border: "1px solid #d4d4d4",
-              padding: 12,
-              zIndex: 9999999, // higher
-              borderRadius: 12,
-              overflowY: "auto",
-              boxShadow: "0 8px 20px rgba(0,0,0,0.18)",
-              pointerEvents: "auto",
-            }}
-            onMouseEnter={() => clearTimeout(hideTimeout.current)}
-            onMouseLeave={hideOngoing}
-          >
-            <p className="font-semibold text-slate-900 mb-3">Open Incidents</p>
-
-            <div className="flex flex-col gap-2">
-              {openIncidentSubjects.length === 0 ? (
-                <p className="text-sm text-slate-500">No open incidents</p>
-              ) : (
-                openIncidentSubjects.map((subject, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-white border border-slate-300 rounded-lg p-2 text-sm font-medium text-black"
-                  >
-                    {subject}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* <StatCard
-        label="Forms Submitted"
-        value={totalFormsFilled}
-        color="#3b82f6"
-        icon={<i className="fa-solid fa-pen-to-square" />}
-      /> */}
+      {/* Tooltip portal */}
+      {showTooltip && ongoing.length > 0 && (
+        <OngoingTooltip incidents={ongoing} anchorRef={ongoingRef} />
+      )}
     </div>
   );
 };

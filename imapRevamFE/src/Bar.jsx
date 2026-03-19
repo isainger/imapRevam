@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Check, AlertCircle } from "lucide-react";
 import { useForm } from "@mantine/form";
 import groupedProductOptions from "./data/GroupedProductItems";
 import emailGroups from "./data/EmailGroups";
@@ -11,7 +12,7 @@ import ActionBtn from "./components/ActionBtn";
 import InputBtn from "./components/InputBtn";
 import DateTimeSelector from "./components/DateTimeSelector";
 import EmailTemplateLayout from "./utils/EmailTemplateLayout";
-import { Box, Title, Group, Textarea, Modal, Switch } from "@mantine/core";
+import { Box, Textarea, Modal } from "@mantine/core";
 import SearchableInput from "./components/SearchableInput";
 import { notifications } from "@mantine/notifications";
 import {
@@ -27,7 +28,7 @@ import StatsOverview from "./components/StatsOverview";
 import DepartmentChangeFlow from "./components/DepartmentChangeFlow";
 
 const Bar = () => {
-  const formTabs = ["General", "Publisher", "Advertiser", "Header Bidding"];
+  const formTabs = ["General", "Publisher", "Advertiser"];
   const [formStep, setFormStep] = useState(1);
   const [incidentAction, setIncidentAction] = useState([]);
   const [oldIncidentData, setOldIncidentData] = useState(null);
@@ -82,6 +83,11 @@ const Bar = () => {
       iconClass: "fa-solid fa-screwdriver-wrench",
     },
   };
+  const departmentToGroupsMap = {
+    Publisher: ["Publisher"],
+    Advertiser: ["Advertiser"],
+    General: ["Publisher", "Advertiser"],
+  };
 
   const STATUS_FLOW = ["Suspected", "Ongoing", "Resolved", "Resolved with RCA"];
 
@@ -94,7 +100,8 @@ const Bar = () => {
     if (
       // (current.inputBox.inputNumber || "") !==
       //   (originalIncident.incident_number || "") ||
-      (current.inputBox.subject || "") !== (originalIncident.subject || "") ||
+      (current.inputBox.subject || "") !==
+        (originalIncident.incident_subject || "") ||
       (current.inputBox.incidentLink || "") !==
         (originalIncident.incident_link || "") ||
       (current.inputBox.performer || "") !==
@@ -108,7 +115,8 @@ const Bar = () => {
     if (
       // (current.radio.inputIncident || "") !==
       //   (originalIncident.incident_number ? "Yes" : "No") ||
-      (current.radio.status || "") !== (originalIncident.status || "") ||
+      (current.radio.status || "") !==
+        (originalIncident.incident_status || "") ||
       (current.radio.incidentType || "") !==
         (originalIncident.incident_type || "") ||
       (current.radio.revenueImpact || "") !==
@@ -117,8 +125,7 @@ const Bar = () => {
         (originalIncident.next_update || "") ||
       (current.radio.workaround || "") !==
         (originalIncident.workaround || "") ||
-      (current.radio.known_issue ||"") !== 
-        (originalIncident.known_issue || "")
+      (current.radio.known_issue || "") !== (originalIncident.known_issue || "")
     )
       return true;
 
@@ -339,8 +346,8 @@ const Bar = () => {
             ? "Please select a valid name and a valid Taboola email"
             : null,
         revenueImpactDetails: (value, values) =>
-          values.radio.revenueImpact === "Yes" && value.trim().length < 5
-            ? "Please provide revenue impact details (min 5 characters)"
+          values.radio.revenueImpact === "Yes" && value.trim().length < 2
+            ? "Please provide revenue impact details (min 2 characters)"
             : null,
       },
 
@@ -410,7 +417,9 @@ const Bar = () => {
             ? "Please provide workaround update (min 5 characters)"
             : null,
         resolvedDetails: (value, values) =>
-          values.radio.status === "Resolved" && value.trim().length < 5
+          (values.radio.status === "Resolved" ||
+            values.radio.status === "Resolved with RCA") &&
+          value.trim().length < 5
             ? "Please provide Resolved Details update (min 5 characters)"
             : null,
         resolvedwithRcaDetails: (value, values) =>
@@ -693,8 +702,18 @@ const Bar = () => {
       return;
     }
 
+    const seen = new Set();
+
     const filtered = allIncidents
-      .filter((i) => i.subject?.toLowerCase().includes(value.toLowerCase()))
+      .filter((i) =>
+        i.incident_subject?.toLowerCase().includes(value.toLowerCase())
+      )
+      .filter((i) => {
+        const subject = i.incident_subject?.toLowerCase();
+        if (!subject || seen.has(subject)) return false;
+        seen.add(subject);
+        return true;
+      })
       .slice(0, 8);
 
     setSuggestions(filtered);
@@ -727,19 +746,29 @@ const Bar = () => {
 
   useEffect(() => {
     const selectedItem = form.values.dropDown.affectedProduct;
+    const department = form.values.departmentName;
+  
     if (!selectedItem) return;
-
-    const group = groupedProductOptions.find((g) =>
-      g.items.includes(selectedItem)
-    )?.group;
-
-    const emailOption = form.values.dropDown.allEmailOptions.find(
-      (item) => item.group === group
-    );
-
-    if (emailOption) {
-      form.setFieldValue("dropDown.notificationMails", emailOption.emails);
-    }
+  
+    // get allowed groups based on department
+    const allowedGroups = departmentToGroupsMap[department] || [];
+  
+    let emails = [];
+  
+    allowedGroups.forEach((group) => {
+      const emailOption = form.values.dropDown.allEmailOptions.find(
+        (item) => item.group === group
+      );
+  
+      if (emailOption?.emails) {
+        emails.push(...emailOption.emails);
+      }
+    });
+  
+    // remove duplicates
+    const uniqueEmails = [...new Set(emails)];
+  
+    form.setFieldValue("dropDown.notificationMails", uniqueEmails);
   }, [form.values.dropDown.affectedProduct]);
 
   function extractIncidentNumber(input) {
@@ -792,7 +821,12 @@ const Bar = () => {
     e.preventDefault();
     const validate = form.validate();
     if (validate.hasErrors) {
-      console.log("❌ Validation failed:", validate.errors);
+      notifications.show({
+        title: "Validation Error",
+        message:
+          "Please fix the highlighted fields before previewing.",
+        color: "red",
+      });
       return;
     }
     const incidentNumber = extractIncidentNumber(
@@ -868,7 +902,10 @@ const Bar = () => {
       preparedPayload.status_update_details = null;
     }
 
-    if (form.values.radio.status === "Resolved") {
+    if (
+      form.values.radio.status === "Resolved" ||
+      form.values.radio.status === "Resolved with RCA"
+    ) {
       preparedPayload.resolved_details = form.values.textArea.resolvedDetails;
       preparedPayload.resolved_time = form.values.dateTime.resolvedTime.utc;
     } else {
@@ -1091,22 +1128,68 @@ const Bar = () => {
     }
   };
 
-  const getSectionTitle = () => {
+  const getSectionMeta = () => {
     if (incidentAction.actionType === "create") {
-      if (computedStep === "knownIssue") return "Incident Classification";
-      if (computedStep === "department") return "Select Department";
-      if (computedStep === "form") return "Create Incident";
+      if (computedStep === "knownIssue")
+        return {
+          icon: "fa-solid fa-circle-question",
+          iconColor: "#0056f0",
+          label: "Step 1 of 3",
+          title: "Incident Classification",
+          subtitle:
+            "Tell us whether this is a known recurring issue before we begin.",
+        };
+      if (computedStep === "department")
+        return {
+          icon: "fa-solid fa-building",
+          iconColor: "#7c3aed",
+          label: "Step 2 of 3",
+          title: "Select Department",
+          subtitle: "Choose the team responsible for owning this incident.",
+        };
+      if (computedStep === "form")
+        return {
+          icon: "fa-solid fa-file-circle-plus",
+          iconColor: "#0891b2",
+          label: "Step 3 of 3",
+          title: "Create Incident",
+          subtitle:
+            "Fill in the full details, severity, and impact of the incident.",
+        };
     }
 
     if (incidentAction.actionType === "update") {
-      if (computedStep === "fetchIncident") return "Fetch Existing Incident";
-      if (computedStep === "department") return "Update Department";
-      if (computedStep === "form") return "Update Incident";
+      if (computedStep === "fetchIncident")
+        return {
+          icon: "fa-solid fa-magnifying-glass",
+          iconColor: "#0056f0",
+          label: "Step 1 of 3",
+          title: "Fetch Existing Incident",
+          subtitle:
+            "Enter the incident number to load and continue updating it.",
+        };
+      if (computedStep === "department")
+        return {
+          icon: "fa-solid fa-building-circle-arrow-right",
+          iconColor: "#7c3aed",
+          label: "Step 2 of 3",
+          title: "Update Department",
+          subtitle:
+            "Reassign this incident to a different department if needed.",
+        };
+      if (computedStep === "form")
+        return {
+          icon: "fa-solid fa-pen-to-square",
+          iconColor: "#0891b2",
+          label: "Step 3 of 3",
+          title: "Update Incident",
+          subtitle:
+            "Review and update the current status, details, and timeline.",
+        };
     }
 
     return null;
   };
-
   const handleDeptCancel = () => {
     setDeptConfirmOpen(false);
     setPendingDepartment(null);
@@ -1168,43 +1251,126 @@ const Bar = () => {
   return (
     <>
       {!incidentAction.showForm && (
-        <div className="w-full p-4 flex justify-center items-center mx-auto">
-          <div className="w-2/5 flex-col flex justify-center items-center gap-4 cursor-pointer">
+        <div
+          className="w-full flex flex-col items-center justify-center px-6 py-10 gap-10"
+          style={{ minHeight: "calc(100vh - 200px)" }}
+        >
+          {/* Welcome heading */}
+          <div className="text-center">
+            <p className="text-xs font-semibold text-[#0056f0] uppercase tracking-[3px] mb-2">
+              Incident Management
+            </p>
+            <h1 className="text-3xl font-extrabold text-slate-800 mb-2">
+              What would you like to do?
+            </h1>
+            <p className="text-sm text-slate-400">
+              Choose an action below to get started
+            </p>
+          </div>
+
+          {/* Action cards */}
+          <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6 cursor-pointer">
+            {/* CREATE CARD */}
             <div
-              className="w-full flex flex-col items-start justify-center
-           bg-[#f7f8fb] rounded-3xl mt-4 
-      shadow-[0_18px_40px_rgba(15,23,42,0.18)] p-10 gap-4"
+              className="group relative flex flex-col items-start justify-between
+          bg-white rounded-2xl p-8 gap-5 border border-slate-200/60
+          hover:border-[#0056f0]/30 transition-all duration-300
+          hover:shadow-[0_20px_50px_rgba(0,86,240,0.12)] hover:-translate-y-1"
               onClick={() =>
-                setIncidentAction({
-                  showForm: true,
-                  actionType: "create",
-                })
+                setIncidentAction({ showForm: true, actionType: "create" })
               }
             >
-              <p className="font-extrabold text-4xl">Create Incident</p>
-              <p className="text-[#777c8a] font-semibold">
-                Log a new incident with severity, impact, timeline and ownership
-              </p>
+              <div
+                className="w-14 h-14 rounded-2xl bg-[#0056f0]/8 flex items-center justify-center
+          group-hover:bg-[#0056f0] group-hover:scale-110 transition-all duration-300"
+              >
+                <i className="fa-solid fa-plus text-[#0056f0] group-hover:text-white transition-colors text-xl" />
+              </div>
+              <div>
+                <p className="font-bold text-lg text-slate-800 mb-1">
+                  Create Incident
+                </p>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Log a new incident with severity, impact, timeline and
+                  ownership
+                </p>
+              </div>
+              <div
+                className="flex items-center gap-2 text-[#0056f0] text-xs font-semibold
+          opacity-0 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all duration-300"
+              >
+                <span>Get started</span>
+                <i className="fa-solid fa-arrow-right text-[10px]" />
+              </div>
+              <div
+                className="absolute top-0 left-8 right-8 h-[3px] rounded-b-full
+          bg-gradient-to-r from-[#0056f0] to-[#00c6ff]
+          scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
+              />
             </div>
 
+            {/* UPDATE CARD */}
             <div
-              className="w-full flex flex-col items-start justify-center
-           bg-[#f7f8fb] rounded-3xl mt-4 
-      shadow-[0_18px_40px_rgba(15,23,42,0.18)] p-10 gap-4"
+              className="group relative flex flex-col items-start justify-between
+          bg-white rounded-2xl p-8 gap-5 border border-slate-200/60
+          hover:border-[#7c3aed]/30 transition-all duration-300
+          hover:shadow-[0_20px_50px_rgba(124,58,237,0.12)] hover:-translate-y-1"
               onClick={() =>
-                setIncidentAction({
-                  showForm: true,
-                  actionType: "update",
-                })
+                setIncidentAction({ showForm: true, actionType: "update" })
               }
             >
-              <p className="font-extrabold text-4xl">Update Ongoing Incident</p>
-              <p className="text-[#777c8a] font-semibold">
-                Send updates for an existing open incident
-              </p>
+              <div
+                className="w-14 h-14 rounded-2xl bg-[#7c3aed]/8 flex items-center justify-center
+          group-hover:bg-[#7c3aed] group-hover:scale-110 transition-all duration-300"
+              >
+                <i className="fa-solid fa-pen-to-square text-[#7c3aed] group-hover:text-white transition-colors text-xl" />
+              </div>
+              <div>
+                <p className="font-bold text-lg text-slate-800 mb-1">
+                  Update Ongoing Incident
+                </p>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Send updates for an existing open incident
+                </p>
+              </div>
+              <div
+                className="flex items-center gap-2 text-[#7c3aed] text-xs font-semibold
+          opacity-0 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all duration-300"
+              >
+                <span>Continue</span>
+                <i className="fa-solid fa-arrow-right text-[10px]" />
+              </div>
+              <div
+                className="absolute top-0 left-8 right-8 h-[3px] rounded-b-full
+          bg-gradient-to-r from-[#7c3aed] to-[#a78bfa]
+          scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
+              />
             </div>
           </div>
-          {/* 🔥 STATS GO HERE */}
+
+          {/* Quick tips */}
+          <div className="w-full max-w-3xl grid grid-cols-3 gap-4 mt-2">
+            <div className="flex items-center gap-3 bg-white/60 rounded-xl px-4 py-3 border border-slate-100">
+              <i className="fa-solid fa-bolt text-amber-400 text-sm" />
+              <span className="text-xs text-slate-500">
+                Multi-account impact triggers incident classification
+              </span>{" "}
+            </div>
+            <div className="flex items-center gap-3 bg-white/60 rounded-xl px-4 py-3 border border-slate-100">
+              <i className="fa-solid fa-envelope text-[#0056f0] text-sm" />
+              <span className="text-xs text-slate-500">
+                Stakeholders are notified via email
+              </span>
+            </div>
+            <div className="flex items-center gap-3 bg-white/60 rounded-xl px-4 py-3 border border-slate-100">
+              <i className="fa-solid fa-clock-rotate-left text-emerald-500 text-sm" />
+              <span className="text-xs text-slate-500">
+                Full incident history is tracked
+              </span>
+            </div>
+          </div>
+
+          {/* STATS */}
           <div className="fixed bottom-0 left-0 w-full bg-transparent z-40">
             <div className="mx-auto max-w-6xl px-4 pb-4">
               <StatsOverview incidents={allIncidents} />
@@ -1214,107 +1380,252 @@ const Bar = () => {
       )}
       {incidentAction.showForm && (
         <div
-          className="w-[90%] sm:w-[90%] md:w-[85%] 2xl:w-full
-        max-w-[1400px] 2xl:max-w-[1800px] mx-auto bg-[#f7f8fb] rounded-3xl
-        mt-4 shadow-[0_18px_40px_rgba(15,23,42,0.18)] p-4 sm:p-6 md:p-8
-        h-[calc(100vh-160px)] flex flex-col"
+          className="w-full
+max-w-[1800px] mx-auto bg-[#f7f8fb] rounded-2xl
+mt-2 mb-2 shadow-[0_18px_40px_rgba(15,23,42,0.18)]
+h-[calc(100vh-110px)] flex flex-col overflow-hidden "
         >
-          {/* Header */}
-          <div
-            className="flex items-center gap-2 text-sm text-slate-500 mb-6 cursor-pointer hover:font-bold"
-            onClick={prevStep}
-          >
-            <i className="fa-solid fa-chevron-left opacity-70" />
-            <span>{formStep === 1 ? "Back to dashboard" : "Back"}</span>
-          </div>
-
           {/* Main grid */}
           <div
-            className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[180px_1fr]
-            gap-6 md:gap-8 lg:gap-1 flex-1"
+            className="grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr]
+gap-0 flex-1 min-h-0"
           >
             {/* LEFT — Stepper */}
-            <aside
-              className="pt-1 border-[#d4d7d9] border-r-2 h-full flex flex-col 
-justify-between"
-            >
-              <div className="relative">
-                {/* DOTTED LINE */}
-                <div className="absolute left-[11px] top-0 bottom-0 border-l-2 border-dotted border-slate-300"></div>
-
-                <ul className="space-y-6 relative z-10">
+            <aside className="p-4 flex flex-col justify-start gap-4 bg-[#002852] overflow-hidden">
+              {/* ── Back button (now lives inside the sidebar) ── */}
+              <button
+                className="imap-back-btn group relative flex items-center gap-3 w-full px-4 py-3 mb-2 rounded-2xl cursor-pointer overflow-hidden outline-none transition-all duration-400"
+                onClick={prevStep}
+                type="button"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(0,86,240,0.08) 100%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <span className="imap-back-shimmer absolute inset-0 pointer-events-none" />
+                <div
+                  className="relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 group-hover:scale-110"
+                  style={{ background: "rgba(255,255,255,0.08)" }}
+                >
+                  <i className="fa-solid fa-arrow-left text-sm text-white/60 group-hover:text-white transition-all duration-300" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-semibold leading-none mb-1 transition-colors duration-300 group-hover:text-white/50">
+                    {formStep === 1 ? "Navigate" : `Step ${formStep} of 3`}
+                  </span>
+                  <span className="text-sm font-bold text-white/70 transition-all duration-300 group-hover:text-white">
+                    {formStep === 1 ? "Back to Dashboard" : "Previous Step"}
+                  </span>
+                </div>
+                <div
+                  className="ml-auto w-2.5 h-2.5 rounded-full transition-all duration-500 group-hover:scale-150"
+                  style={{ background: "rgba(0,86,240,0.4)" }}
+                />
+              </button>
+              {/* Stepper */}
+              <div className="mb-4">
+                <h2 className="text-xs font-medium text-[#7bcdff] mb-4 uppercase tracking-wider">
+                  Progress
+                </h2>
+                <div className="space-y-4">
                   {/* STEP 1 */}
-                  <li
-                    className={`flex items-center gap-3 text-sm font-semibold ${formStep >= 1 ? "text-slate-900" : "text-slate-400"}`}
-                  >
-                    <div
-                      className={`
-          w-[22px] h-[22px] rounded-full flex items-center justify-center 
-          border-2 transition-all duration-200
-          ${formStep > 1 ? "bg-blue-600 border-blue-600 text-white" : ""}
-          ${formStep === 1 ? "bg-blue-600 border-blue-600 text-white animate-pulse shadow-[0_0_10px_#60a5fa]" : ""}
-          ${formStep < 1 ? "bg-white border-slate-300" : ""}
-        `}
-                    >
-                      {formStep > 1 && (
-                        <i className="fa-solid fa-check text-[12px]"></i>
-                      )}
+                  <div className="flex items-start gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="relative w-8 h-8">
+                        {formStep === 1 && (
+                          <div className="absolute inset-0 rounded-full bg-[#0056f0] animate-ping opacity-40" />
+                        )}
+                        <div
+                          className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                            formStep > 1
+                              ? "bg-[#00f0d2]"
+                              : formStep === 1
+                                ? "bg-[#0056f0]"
+                                : "bg-white/10 border border-white/20"
+                          }`}
+                        >
+                          {formStep > 1 ? (
+                            <Check
+                              className="w-4 h-4 text-[#002852]"
+                              strokeWidth={2.5}
+                            />
+                          ) : (
+                            <span
+                              className={`text-xs font-medium ${formStep === 1 ? "text-white" : "text-white/40"}`}
+                            >
+                              1
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        className={`w-px h-8 mt-1 ${formStep > 1 ? "bg-[#00f0d2]" : "bg-white/20"}`}
+                      />
                     </div>
-
-                    <span>
-                      {incidentAction.actionType === "update"
-                        ? "Fetch Incident"
-                        : "Known Issue"}
-                    </span>
-                  </li>
+                    <div className="pt-1.5">
+                      <p
+                        className={`text-sm font-bold ${
+                          formStep === 1
+                            ? "text-white"
+                            : formStep > 1
+                              ? "text-[#7bcdff]"
+                              : "text-white/40"
+                        }`}
+                      >
+                        {incidentAction.actionType === "update"
+                          ? "Fetch Incident"
+                          : "Known Issue"}
+                      </p>
+                    </div>
+                  </div>
 
                   {/* STEP 2 */}
-                  <li
-                    className={`flex items-center gap-3 text-sm ${formStep >= 2 ? "text-slate-900" : "text-slate-400"}`}
-                  >
-                    <div
-                      className={`
-          w-[22px] h-[22px] rounded-full flex items-center justify-center 
-          border-2 transition-all duration-200
-          ${formStep > 2 ? "bg-blue-600 border-blue-600 text-white" : ""}
-          ${formStep === 2 ? "bg-blue-600 border-blue-600 text-white animate-pulse shadow-[0_0_10px_#60a5fa]" : ""}
-          ${formStep < 2 ? "bg-white border-slate-300" : ""}
-        `}
-                    >
-                      {formStep > 2 && (
-                        <i className="fa-solid fa-check text-[12px]"></i>
-                      )}
+                  <div className="flex items-start gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="relative w-8 h-8">
+                        {formStep === 2 && (
+                          <div className="absolute inset-0 rounded-full bg-[#0056f0] animate-ping opacity-40" />
+                        )}
+                        <div
+                          className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                            formStep > 2
+                              ? "bg-[#00f0d2]"
+                              : formStep === 2
+                                ? "bg-[#0056f0]"
+                                : "bg-white/10 border border-white/20"
+                          }`}
+                        >
+                          {formStep > 2 ? (
+                            <Check
+                              className="w-4 h-4 text-[#002852]"
+                              strokeWidth={2.5}
+                            />
+                          ) : (
+                            <span
+                              className={`text-xs font-medium ${formStep === 2 ? "text-white" : "text-white/40"}`}
+                            >
+                              2
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        className={`w-px h-8 mt-1 ${formStep > 2 ? "bg-[#00f0d2]" : "bg-white/20"}`}
+                      />
                     </div>
-
-                    <span>Department</span>
-                  </li>
+                    <div className="pt-1.5">
+                      <p
+                        className={`text-sm font-bold ${
+                          formStep === 2
+                            ? "text-white"
+                            : formStep > 2
+                              ? "text-[#7bcdff]"
+                              : "text-white/40"
+                        }`}
+                      >
+                        Department
+                      </p>
+                    </div>
+                  </div>
 
                   {/* STEP 3 */}
-                  <li
-                    className={`flex items-center gap-3 text-sm ${formStep === 3 ? "text-slate-900" : "text-slate-400"}`}
-                  >
-                    <div
-                      className={`
-          w-[22px] h-[22px] rounded-full flex items-center justify-center 
-          border-2 transition-all duration-200
-          ${formStep === 3 ? "bg-blue-600 border-blue-600 text-white animate-pulse shadow-[0_0_10px_#60a5fa]" : "bg-white border-slate-300"}
-        `}
-                    ></div>
-
-                    <span>Incident Form</span>
-                  </li>
-                </ul>
+                  <div className="flex items-start gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="relative w-8 h-8">
+                        {formStep === 3 && (
+                          <div className="absolute inset-0 rounded-full bg-[#0056f0] animate-ping opacity-40" />
+                        )}
+                        <div
+                          className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                            formStep === 3
+                              ? "bg-[#0056f0]"
+                              : "bg-white/10 border border-white/20"
+                          }`}
+                        >
+                          <span
+                            className={`text-xs font-medium ${formStep === 3 ? "text-white" : "text-white/40"}`}
+                          >
+                            3
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-1.5">
+                      <p
+                        className={`text-sm font-bold ${formStep === 3 ? "text-white" : "text-white/40"}`}
+                      >
+                        Incident Form
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {oldIncidentData && (
-                <div>
+                <div className="mt-auto flex flex-col gap-4">
                   <IncidentData incidentData={oldIncidentData} />
+
+                  {/* Current Incident Info Card */}
+                  <div
+                    className="rounded-xl p-4 border border-white/10"
+                    style={{ background: "rgba(255,255,255,0.04)" }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <i className="fa-solid fa-circle-info text-[#7bcdff] text-xs" />
+                      <span className="text-[10px] font-semibold text-[#7bcdff] uppercase tracking-widest">
+                        Current Incident
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-white/40">Incident ID</span>
+                      <span className="text-sm font-bold text-white">
+                        #{oldIncidentData[0]?.display_id || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-white/40">Priority</span>
+                      <span
+                        className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor:
+                            form.values.dropDown.severity === "Emergency"
+                              ? "rgba(239,68,68,0.15)"
+                              : form.values.dropDown.severity === "High"
+                                ? "rgba(245,158,11,0.15)"
+                                : "rgba(59,130,246,0.15)",
+                          color:
+                            form.values.dropDown.severity === "Emergency"
+                              ? "#f87171"
+                              : form.values.dropDown.severity === "High"
+                                ? "#fbbf24"
+                                : "#60a5fa",
+                        }}
+                      >
+                        {form.values.dropDown.severity || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-white/40">Created</span>
+                      <span className="text-sm font-semibold text-white/70">
+                        {oldIncidentData[0]?.created_at
+                          ? new Date(
+                              oldIncidentData[0].created_at
+                            ).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
             </aside>
 
             {/* RIGHT — FORM */}
-            <section className="w-full overflow-y-auto pr-2 pl-2 pb-10 max-h-[calc(100vh-250px)]">
+            <section className="w-full overflow-y-auto p-2 min-h-0">
               <Box
                 mx="auto"
                 p="xs"
@@ -1322,12 +1633,52 @@ justify-between"
                 shadow="lg"
                 className="w-full flex flex-col items-center h-full"
               >
-                {getSectionTitle() && (
-                  <div className="w-full mb-4 text-2xl font-semibold text-slate-800 flex justify-center items-center">
-                    {getSectionTitle()}
-                  </div>
-                )}{" "}
-                <form className="w-full h-full overflow-y-auto p-2 flex flex-col items-start gap-4">
+                {(() => {
+                  const meta = getSectionMeta();
+                  if (!meta) return null;
+                  return (
+                    <div className="w-full mb-6 px-2">
+                      <div className="flex items-center gap-3 mb-3">
+                        {/* Icon badge */}
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: meta.iconColor + "18" }}
+                        >
+                          <i
+                            className={`${meta.icon} text-base`}
+                            style={{ color: meta.iconColor }}
+                          />
+                        </div>
+                        {/* Step label pill */}
+                        <span
+                          className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                          style={{
+                            backgroundColor: meta.iconColor + "18",
+                            color: meta.iconColor,
+                          }}
+                        >
+                          {meta.label}
+                        </span>
+                      </div>
+                      {/* Title */}
+                      <h1 className="text-2xl font-bold text-slate-800 mb-1">
+                        {meta.title}
+                      </h1>
+                      {/* Subtitle */}
+                      <p className="text-sm text-slate-400 leading-relaxed">
+                        {meta.subtitle}
+                      </p>
+                      {/* Accent line */}
+                      <div
+                        className="mt-4 h-px w-full rounded-full"
+                        style={{
+                          background: `linear-gradient(to right, ${meta.iconColor}40, transparent)`,
+                        }}
+                      />
+                    </div>
+                  );
+                })()}{" "}
+                <form className="w-full h-full overflow-y-auto p-2 flex flex-col items-start gap-3">
                   {" "}
                   {/* Already Incident */}
                   {/* ======================= ✅ STEP 1 ======================= */}
@@ -1343,80 +1694,140 @@ justify-between"
                       }}
                     /> */}
                   {computedStep === "fetchIncident" && (
-                    <div className="w-full h-full flex flex-col justify-center items-center gap-8">
-                      {/* Conditional input for incident number */}
-                      {incidentAction.actionType === "update" && (
-                        <InputBtn
-                          horizontalLayout={true}
-                          title="Incident No.: "
-                          width="auto"
-                          placeholder="Enter Incident Number"
-                          isBtn={true}
-                          onClick={async (e) => {
-                            e.preventDefault();
+                    <div className="w-full h-full flex flex-col justify-center items-center gap-6 px-4">
+                      {/* Visual card */}
+                      <div
+                        className="w-full max-w-md bg-white rounded-2xl border border-slate-200/60 p-8
+      shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col items-center gap-6"
+                      >
+                        {/* Icon */}
+                        <div className="w-16 h-16 rounded-2xl bg-[#7c3aed]/8 flex items-center justify-center">
+                          <i className="fa-solid fa-magnifying-glass text-[#7c3aed] text-2xl" />
+                        </div>
 
-                            // Validate required fields first
-                            const result = form.validateField(
-                              "inputBox.inputNumber"
-                            );
+                        {/* Title */}
+                        <div className="text-center">
+                          <h2 className="text-sm font-bold text-slate-800 mb-1">
+                            Find your incident
+                          </h2>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            Enter the incident number or Salesforce Case ID to
+                            load it
+                          </p>
+                        </div>
 
-                            if (result.hasError) {
-                              return;
-                            }
+                        {/* Input */}
+                        {incidentAction.actionType === "update" && (
+                          <div className="w-full">
+                            <InputBtn
+                              horizontalLayout={false}
+                              title="Incident Number"
+                              width="100%"
+                              placeholder="e.g. 5001X00001abc or Case ID"
+                              isBtn={true}
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                const result = form.validateField(
+                                  "inputBox.inputNumber"
+                                );
+                                if (result.hasError) return;
+                                const success = await searchIncident(e);
+                                if (success) nextStep();
+                              }}
+                              inputProps={{
+                                ...form.getInputProps("inputBox.inputNumber"),
+                                onChange: (e) =>
+                                  handleChange(
+                                    "inputBox.inputNumber",
+                                    e.target.value
+                                  ),
+                              }}
+                            />
+                          </div>
+                        )}
 
-                            // Fetch incident
-                            const success = await searchIncident(e);
-
-                            if (success) {
-                              nextStep();
-                            }
-                          }}
-                          inputProps={{
-                            ...form.getInputProps("inputBox.inputNumber"), // keeps value, error, onBlur, etc.
-                            onChange: (e) =>
-                              handleChange(
-                                "inputBox.inputNumber",
-                                e.target.value
-                              ), // replace default onChange
-                          }}
-                        />
-                      )}
+                        {/* Help callout */}
+                        <div className="w-full flex items-start gap-3 bg-[#7c3aed]/5 rounded-xl px-4 py-3">
+                          <i className="fa-solid fa-circle-info text-[#7c3aed] text-sm mt-0.5" />
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            <span className="font-semibold text-slate-600">
+                              Where to find it:
+                            </span>{" "}
+                            Copy the incident number from Salesforce, or use the
+                            Case URL directly.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
                   {/* ======================= ✅ STEP 2 ======================= */}
                   {/* ✅ KNOWN ISSUE (RADIO + DISABLED WHEN FETCHED) */}
                   {computedStep === "knownIssue" && (
-                    <div className="w-full h-full flex flex-col justify-center items-center gap-8">
-                      <RadioBtn
-                        data={["Yes", "No"]}
-                        radioHead="Known Issue?"
-                        horizontal={true}
-                        inputProps={{
-                          ...form.getInputProps("radio.known_issue"), // keeps value, error, onBlur, etc.
-                          onChange: (val) =>
-                            handleChange("radio.known_issue", val), // replace default onChange
-                        }}
-                      />
-                      {originalIncident && (
-                        <p className="text-xs text-gray-400">
-                          Known Issue is locked because this incident was
-                          fetched.
-                        </p>
-                      )}
+                    <div className="w-full h-full flex flex-col justify-center items-center gap-6 px-4">
+                      {/* Visual card */}
+                      <div
+                        className="w-full max-w-md bg-white rounded-2xl border border-slate-200/60 p-8
+      shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col items-center gap-6"
+                      >
+                        {/* Icon */}
+                        <div className="w-16 h-16 rounded-2xl bg-[#0056f0]/8 flex items-center justify-center">
+                          <i className="fa-solid fa-circle-question text-[#0056f0] text-2xl" />
+                        </div>
 
+                        {/* Question */}
+                        <div className="text-center">
+                          <h2 className="text-sm font-bold text-slate-800 mb-1">
+                            Is this a known issue?
+                          </h2>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            Known issues follow a shorter lifecycle: Ongoing →
+                            Resolved
+                          </p>
+                        </div>
+
+                        {/* Radio */}
+                        <div className="w-full flex justify-center">
+                          <RadioBtn
+                            data={["Yes", "No"]}
+                            radioHead="Known Issue?"
+                            horizontal={true}
+                            inputProps={{
+                              ...form.getInputProps("radio.known_issue"),
+                              onChange: (val) =>
+                                handleChange("radio.known_issue", val),
+                            }}
+                          />
+                        </div>
+
+                        {originalIncident && (
+                          <p className="text-xs text-slate-300 italic">
+                            Locked — this incident was fetched from the
+                            database.
+                          </p>
+                        )}
+
+                        {/* Info callout */}
+                        <div className="w-full flex items-start gap-3 bg-[#0056f0]/5 rounded-xl px-4 py-3">
+                          <i className="fa-solid fa-lightbulb text-[#0056f0] text-sm mt-0.5" />
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            <span className="font-semibold text-slate-600">
+                              Tip:
+                            </span>{" "}
+                            Select "Yes" for recurring or previously identified
+                            issues. Select "No" for new or unclassified
+                            incidents.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Continue button */}
                       <ActionBtn
                         btnText="Continue"
                         type="button"
                         onClick={() => {
                           const result =
                             form.validateField("radio.known_issue");
-
-                          // If either has an error → stop here
-                          if (result.hasError) {
-                            return;
-                          }
-
-                          // Move to next step
+                          if (result.hasError) return;
                           nextStep();
                         }}
                       />
@@ -1429,7 +1840,8 @@ justify-between"
                         Select Department
                       </h2> */}
 
-                      <div className="w-full max-w-[620px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 place-items-center">
+                      <div className="grid grid-cols-3 gap-6 mb-16 place-items-center">
+                        {" "}
                         {formTabs.map((dept) => (
                           <DepartmentCard
                             key={dept}
@@ -1476,7 +1888,16 @@ justify-between"
                   {/* ======================= ✅ STEP 4 ======================= */}
                   {/* ✅ FULL FORM (UNCHANGED FIELDS) */}
                   {computedStep === "form" && (
-                    <div className="w-full h-full flex flex-col items-start overflow-y-auto gap-6">
+                    <div className="w-full h-full flex flex-col items-start overflow-y-auto gap-4">
+                      <div className="w-full flex items-center gap-3 mt-2 mb-1">
+                        <div className="w-7 h-7 rounded-lg bg-[#0056f0]/10 flex items-center justify-center">
+                          <i className="fa-solid fa-info text-[#0056f0] text-xs" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          Basic Information
+                        </span>
+                        <div className="flex-1 h-px bg-slate-200" />
+                      </div>
                       {/* Subject input */}
                       <div style={{ position: "relative", width: "100%" }}>
                         <InputBtn
@@ -1494,36 +1915,24 @@ justify-between"
 
                         {suggestions.length > 0 && (
                           <div
-                            style={{
-                              position: "absolute",
-                              top: "100%",
-                              left: 0,
-                              width: "100%",
-                              background: "#f7f8fb",
-                              border: "1px solid #ddd",
-                              borderRadius: "6px",
-                              marginTop: "4px",
-                              zIndex: 9999,
-                              maxHeight: "200px",
-                              overflowY: "auto",
-                            }}
+                            className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200
+    rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.08)] z-[9999] max-h-[200px] overflow-y-auto"
                           >
                             {suggestions.map((item) => (
                               <div
                                 key={item.id}
-                                style={{
-                                  padding: "8px 10px",
-                                  cursor: "pointer",
-                                }}
+                                className="px-3 py-2.5 cursor-pointer text-sm text-slate-600
+          hover:bg-[#0056f0]/5 hover:text-[#0056f0] transition-colors
+          border-b border-slate-100 last:border-b-0"
                                 onClick={() => {
                                   form.setFieldValue(
                                     "inputBox.subject",
-                                    item.subject
+                                    item.incident_subject
                                   );
                                   setSuggestions([]);
                                 }}
                               >
-                                {item.subject}
+                                {item.incident_subject}
                               </div>
                             ))}
                           </div>
@@ -1539,6 +1948,15 @@ justify-between"
                         }}
                         startingLine=""
                       />
+                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
+                        <div className="w-7 h-7 rounded-lg bg-[#e53e3e]/10 flex items-center justify-center">
+                          <i className="fa-solid fa-signal text-[#e53e3e] text-xs" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          Status & Resolution
+                        </span>
+                        <div className="flex-1 h-px bg-slate-200" />
+                      </div>
 
                       {/* Status Radio Group */}
                       <RadioBtn
@@ -1580,7 +1998,8 @@ justify-between"
                           return statusIndex < currentIndex;
                         }}
                       />
-                      {form.values.radio.status === "Resolved" && (
+                      {(form.values.radio.status === "Resolved" ||
+                        form.values.radio.status === "Resolved with RCA") && (
                         <IncidentTxtBox
                           context="resolution"
                           inputProps={{
@@ -1607,9 +2026,10 @@ justify-between"
                           startingLine="Resolved with RCA Details:"
                         />
                       )}
-                      <div className="flex justify-center flex-col w-full items-start">
-                        <div
-                          className="w-auto flex gap-2 items-center"
+                      <div className="flex flex-col w-full items-start gap-3">
+                        <button
+                          type="button"
+                          className={`imap-toggle-btn${form.values.statusUpdate ? " active" : ""}`}
                           onClick={() =>
                             form.setFieldValue(
                               "statusUpdate",
@@ -1617,13 +2037,16 @@ justify-between"
                             )
                           }
                         >
-                          {form.values.statusUpdate ? (
-                            <i className="fa-solid fa-circle-minus"></i>
-                          ) : (
-                            <i className="fa-solid fa-circle-plus"></i>
-                          )}
-                          <p>Add Status Update</p>
-                        </div>
+                          <i
+                            className={`fa-solid ${form.values.statusUpdate ? "fa-minus" : "fa-plus"}`}
+                            style={{ fontSize: "10px" }}
+                          />
+                          <span>
+                            {form.values.statusUpdate
+                              ? "Remove Status Update"
+                              : "Add Status Update"}
+                          </span>
+                        </button>
                         {form.values.statusUpdate && (
                           <IncidentTxtBox
                             context="status_update"
@@ -1661,6 +2084,15 @@ justify-between"
                           startingLine="Workaround Details:"
                         />
                       )}
+                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
+                        <div className="w-7 h-7 rounded-lg bg-[#7c3aed]/10 flex items-center justify-center">
+                          <i className="fa-solid fa-tags text-[#7c3aed] text-xs" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          Classification
+                        </span>
+                        <div className="flex-1 h-px bg-slate-200" />
+                      </div>
                       <DropdownBtn
                         title="Reported By: "
                         data={[
@@ -1724,7 +2156,15 @@ justify-between"
                             handleChange("radio.incidentType", val), // replace default onChange
                         }}
                       />
-
+                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
+                        <div className="w-7 h-7 rounded-lg bg-[#0891b2]/10 flex items-center justify-center">
+                          <i className="fa-regular fa-clock text-[#0891b2] text-xs" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          Timeline
+                        </span>
+                        <div className="flex-1 h-px bg-slate-200" />
+                      </div>
                       <DateTimeSelector
                         value={form.values.dateTime.startTime.local}
                         onChange={(val) =>
@@ -1778,7 +2218,15 @@ justify-between"
                           )}
                         />
                       )}
-
+                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
+                        <div className="w-7 h-7 rounded-lg bg-[#d97706]/10 flex items-center justify-center">
+                          <i className="fa-solid fa-chart-line text-[#d97706] text-xs" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          Impact & Details
+                        </span>
+                        <div className="flex-1 h-px bg-slate-200" />
+                      </div>
                       <RadioBtn
                         data={["Yes", "No"]}
                         radioHead="Revenue Impact"
@@ -1790,12 +2238,13 @@ justify-between"
                       />
 
                       {form.values.radio.revenueImpact === "Yes" && (
-                        <Group w="100%">
-                          <Title order={5} ta="left">
-                            Impacted Revenue:{" "}
-                          </Title>
+                        <div className="imap-textarea-field">
+                          <label className="imap-field-label">
+                            Impacted Revenue
+                            <span className="imap-required">*</span>
+                          </label>
                           <Textarea
-                            placeholder="Enter a detailed description..."
+                            placeholder="Describe the financial impact in detail..."
                             radius="md"
                             size="md"
                             autosize
@@ -1803,8 +2252,13 @@ justify-between"
                             minRows={3}
                             styles={{
                               input: {
-                                border: "1px solid #6badef",
-                                background: "transparent",
+                                border: "1.5px solid #e2e8f0",
+                                background: "#fff",
+                                borderRadius: "10px",
+                                fontSize: "13px",
+                                fontFamily: "'Poppins', sans-serif",
+                                transition:
+                                  "border-color 0.2s, box-shadow 0.2s",
                               },
                             }}
                             {...form.getInputProps(
@@ -1817,7 +2271,7 @@ justify-between"
                               )
                             }
                           />
-                        </Group>
+                        </div>
                       )}
 
                       <DropdownBtn
@@ -1845,7 +2299,7 @@ justify-between"
                           "Service Degradation",
                           "Intermittent",
                           "Complete Outage",
-                          "No Impact (Informational)"
+                          "No Impact (Informational)",
                         ]}
                         inputProps={{
                           ...form.getInputProps("dropDown.serviceImpacted"), // keeps value, error, onBlur, etc.
@@ -1853,7 +2307,15 @@ justify-between"
                             handleChange("dropDown.serviceImpacted", val), // replace default onChange
                         }}
                       />
-
+                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
+                        <div className="w-7 h-7 rounded-lg bg-[#059669]/10 flex items-center justify-center">
+                          <i className="fa-solid fa-link text-[#059669] text-xs" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          Ownership & Links
+                        </span>
+                        <div className="flex-1 h-px bg-slate-200" />
+                      </div>
                       <InputBtn
                         horizontalLayout={false}
                         title="Incident Link: "

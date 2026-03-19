@@ -1,18 +1,21 @@
-import { Autocomplete, Stack, Title } from "@mantine/core";
-import React, { useEffect, useState } from "react";
+import { Autocomplete, Stack } from "@mantine/core";
+import React, { useState } from "react";
 
 const SearchableInput = (props) => {
   const { title, width, placeholder, data, inputProps } = props;
   const [opened, setOpened] = useState(false);
+
   const options = data.map((item) => ({
     value: item.email,
-    label: `${item.name} (${item.email})`, // optional, what user sees
+    label: `${item.name} (${item.email})`,
   }));
+
   return (
-    <Stack w={width}>
-      <Title order={5} ta="left">
-        {title} <span style={{ color: "red" }}>* </span>
-      </Title>
+    <Stack w={width} gap="xs">
+      <label className="imap-field-label">
+        {title.replace(/:\s*$/, '')}
+        <span className="imap-required">*</span>
+      </label>
       <Autocomplete
         classNames={{ input: "custom-input" }}
         placeholder={placeholder}
@@ -21,6 +24,13 @@ const SearchableInput = (props) => {
         dropdownOpened={opened && inputProps.value?.length > 0}
         onFocusCapture={() => setOpened(true)}
         onOptionSubmit={() => setOpened(false)}
+        styles={{
+          input: {
+            borderRadius: "10px",
+            fontSize: "13px",
+            fontFamily: "'Poppins', sans-serif",
+          },
+        }}
         {...inputProps}
       />
     </Stack>
