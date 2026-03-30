@@ -28,7 +28,7 @@ import StatsOverview from "./components/StatsOverview";
 import DepartmentChangeFlow from "./components/DepartmentChangeFlow";
 
 const Bar = () => {
-  const formTabs = ["General", "Publisher", "Advertiser"];
+  const formTabs = ["Advertiser", "General", "Publisher"];
   const [formStep, setFormStep] = useState(1);
   const [incidentAction, setIncidentAction] = useState([]);
   const [oldIncidentData, setOldIncidentData] = useState(null);
@@ -2135,7 +2135,25 @@ gap-0 flex-1 min-h-0"
                         }}
                       />
                       <MultiSelectEmails
-                        options={form.values.dropDown.allEmailOptions}
+                        options={(() => {
+                          const allowedGroups = departmentToGroupsMap[form.values.departmentName] || [];
+                          // Filter options to only show groups relevant to current department.
+                          // This prevents cross-group duplicate email values in the dropdown
+                          // (e.g. an email in both Publisher + Advertiser groups showing twice).
+                          const filtered = form.values.dropDown.allEmailOptions.filter(opt =>
+                            allowedGroups.includes(opt.group)
+                          );
+                          // Deduplicate emails across the filtered groups so no value appears twice
+                          const seen = new Set();
+                          return filtered.map(group => ({
+                            ...group,
+                            emails: group.emails.filter(email => {
+                              if (seen.has(email)) return false;
+                              seen.add(email);
+                              return true;
+                            }),
+                          })).filter(group => group.emails.length > 0);
+                        })()}
                         value={form.values.dropDown.notificationMails}
                         onChange={(val) =>
                           handleChange("dropDown.notificationMails", val)

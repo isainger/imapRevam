@@ -1,25 +1,22 @@
-// mailer/flowImages.js
+// mailer/bannerFlow.js — banner by department + current status (cdn.taboola.com)
+const BASE = "https://cdn.taboola.com/images_incident_management";
+
 module.exports = {
-  "Publisher|Suspected": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769600813/IMAP-V2/publisher_1.png"],
-  "Publisher|Ongoing": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769539692/IMAP-V2/publisher_2.jpg"],
-  "Publisher|Resolved": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769539693/IMAP-V2/publisher_3.jpg"],
-  "Publisher|Resolved with RCA": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769539693/IMAP-V2/publisher_4.jpg"],
-  "Publisher|Not an Issue": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769539692/IMAP-V2/publisher_5.jpg"],
+  "Publisher|Suspected": [`${BASE}/suspected-publisher.png`],
+  "Publisher|Ongoing": [`${BASE}/ongoing-publisher.png`],
+  "Publisher|Resolved": [`${BASE}/resolved-publisher.png`],
+  "Publisher|Resolved with RCA": [`${BASE}/resolved-with-rca-publisher.png`],
+  "Publisher|Not an Issue": [`${BASE}/not-an-issue-publisher.png`],
 
-  "Advertiser|Suspected": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769539693/IMAP-V2/advertiser_1.jpg"],
-  "Advertiser|Ongoing": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769539692/IMAP-V2/advertiser_2.jpg"],
-  "Advertiser|Resolved": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769539692/IMAP-V2/advertiser_4.jpg"],
-  "Advertiser|Resolved with RCA": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769539693/IMAP-V2/advertiser_5.jpg"],
-  "Advertiser|Not an Issue": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1769539692/IMAP-V2/advertiser_3.jpg"],
+  "Advertiser|Suspected": [`${BASE}/suspected-advertiser.png`],
+  "Advertiser|Ongoing": [`${BASE}/ongoing-advertiser.png`],
+  "Advertiser|Resolved": [`${BASE}/resolved-advertiser.png`],
+  "Advertiser|Resolved with RCA": [`${BASE}/resolved-with-rca-advertiser.png`],
+  "Advertiser|Not an Issue": [`${BASE}/not-an-issue-advertiser.png`],
 
+  "General|Suspected": [`${BASE}/suspected-general.png`],
+  "General|Ongoing": [`${BASE}/ongoing-general.png`],
+  "General|Resolved": [`${BASE}/resolved-general.png`],
+  "General|Resolved with RCA": [`${BASE}/resolved-with-rca-general.png`],
+  "General|Not an Issue": [`${BASE}/not-an-issue-general.png`],
 };

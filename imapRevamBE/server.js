@@ -12,8 +12,16 @@ const router = express.Router();
 // const generateHeaderPng = require("./utils/generateHeaderSvg");
 
 const app = express();
-app.use(cors());
+
+const corsOptions = {
+  origin: '*',
+  credentials: true,
+  optionSuccessStatus: 200
+}
+
 app.use(express.json());
+app.use(cors(corsOptions));
+
 app.use("/api/v1/ai", router);
 
 // (async () => {
@@ -163,7 +171,7 @@ app.post("/api/v1/incidents", async (req, res) => {
     await pool.query("COMMIT");
 
     const displayLabel = `INC-${String(displayId).padStart(4, "0")}`;
-    const STATIC_TO = "isainger29@gmail.com";
+    const STATIC_TO = "1st-lvl-shiftleads@taboola.com";
 
     const safeRemaining =
       typeof newData.remaining_status === "string"
@@ -373,7 +381,7 @@ router.post("/improve", async (req, res) => {
 });
 
 app.post("/api/v1/incidents/department-change-email", async (req, res) => {
-  const STATIC_TO = "parassingh964@gmail.com";
+  const STATIC_TO = "1st-lvl-shiftleads@taboola.com";
   try {
     const { incidentNumber, fromDepartment, toDepartment, messageHtml } =
       req.body;
@@ -684,7 +692,7 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
 //   }
 // });
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);

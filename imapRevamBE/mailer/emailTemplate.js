@@ -410,7 +410,7 @@ const EmailTemplate = ({ data }) => {
         el("tr", null,
           el("td", { colSpan: "2", style: { backgroundColor: "#F3F4F6", padding: "12px 36px", textAlign: "center" } },
             el("div", { style: { fontSize: "10px", color: "#9CA3AF", fontFamily: FONT } },
-              "This is an automated notification from Taboola Incident Management Platform"
+              "This is an incident notification from Taboola Incident Management Platform"
             )
           )
         )

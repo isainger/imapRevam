@@ -1,39 +1,27 @@
-// mailer/flowImages.js
+// mailer/statusFlow.js — timeline by firstStatus|currentStatus + known_issue index (progress-timeline on CDN)
+const BASE =
+  "https://cdn.taboola.com/images_incident_management/progress-timeline";
+
 module.exports = {
-  "suspected|suspected": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788527/IMAP-V2/suspected_1.png"
-  ],
-  "suspected|ongoing": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788528/IMAP-V2/suspected_2.png"
-  ],
-  "suspected|resolved": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788529/IMAP-V2/suspected_3.png"
-  ],
-  "suspected|resolved with rca": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788529/IMAP-V2/suspected_4.png"
-  ],
+  "suspected|suspected": [`${BASE}/suspected-rca-1.png`],
+  "suspected|ongoing": [`${BASE}/suspected-rca-2.png`],
+  "suspected|resolved": [`${BASE}/suspected-rca-3.png`],
+  "suspected|resolved with rca": [`${BASE}/suspected-rca-4.png`],
 
   "ongoing|ongoing": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788523/IMAP-V2/ongoing_1.png",
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788523/IMAP-V2/known_ongoing_1.png"
+    `${BASE}/ongoing-rca-1.png`,
+    `${BASE}/ongoing-resolved-1.png`,
   ],
   "ongoing|resolved": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788523/IMAP-V2/ongoing_2.png",
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788524/IMAP-V2/known_ongoing_2.png"
+    `${BASE}/ongoing-rca-2.png`,
+    `${BASE}/ongoing-resolved-2.png`,
   ],
-  "ongoing|resolved with rca": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788523/IMAP-V2/ongoing_3.png"
-  ],
+  "ongoing|resolved with rca": [`${BASE}/ongoing-rca-3.png`],
 
-  "resolved|resolved": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788525/IMAP-V2/resolved_1.png",
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788527/IMAP-V2/known_resolved_1.png"
-  ],
-  "resolved|resolved with rca": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788526/IMAP-V2/resolved_2.png"
-  ],
+  "resolved|resolved": [`${BASE}/resolved-rca-1.png`, `${BASE}/resolved-2.png`],
+  "resolved|resolved with rca": [`${BASE}/resolved-rca-1.png`],
 
   "resolved with rca|resolved with rca": [
-    "https://res.cloudinary.com/doiij4hn1/image/upload/v1772788525/IMAP-V2/resolved_with_rca_1.png"
-  ]
+    `${BASE}/Resolved-%20RCA-2.png`
+  ],
 };

@@ -12,10 +12,7 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME,
-  // ssl: { ca: sslCA },
-  ssl: {
-    rejectUnauthorized: false
-  },
+  ssl: { ca: sslCA },
   waitForConnections: true,
   connectionLimit: 10, // max simultaneous connections
   queueLimit: 0,

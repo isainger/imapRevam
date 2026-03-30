@@ -1,12 +1,11 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT || 587,
+  host: 'ildcsmtp.office.taboola.com',
+  port: 25,
   secure: false,
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+      user: 'smtp_user',
   },
 });
 
@@ -20,7 +19,7 @@ async function sendIncidentEmail({
   references,    // ONLY for follow-ups
 }) {
   const mailOptions = {
-    from: `"Incidents" <${process.env.SMTP_USER}>`,
+    from: 'Incident Management <IncidentManagement@taboola.com>',
     to,
     subject,
     html,
