@@ -1,0 +1,34 @@
+def dockerImage
+
+pipeline {
+    agent { label 'LowPriorityJob' }
+
+    environment {
+        ARTIFACTORY_BASE_URL = 'https://artifactory.taboolasyndication.com:8555'
+        PARSED_BRANCH = "${(env.BRANCH_NAME.contains('/')) ? env.BRANCH_NAME.split('/')[1] : env.BRANCH_NAME}"
+        IMAGE_BASE_NAME = "ps-incident-management-fe"
+    }
+
+    stages {
+        stage('Build and Push Image') {
+            stages {
+                stage('Build Image') {
+                    steps {
+                        script {
+                            dockerImage = docker.build("taboola/${IMAGE_BASE_NAME}:${PARSED_BRANCH}-${env.BUILD_ID}")
+                        }
+                    }
+                }
+                stage('Push Image') {
+                    steps {
+                        script {
+                            docker.withRegistry("${ARTIFACTORY_BASE_URL}", 'builder') {
+                                dockerImage.push()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
