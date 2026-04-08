@@ -3,12 +3,70 @@ import { formatDate } from "./formatDate";
 import incidentLogo from "../assets/incidentLogo.png";
 import RecipientsPreviewModal from "../components/RecipientsPreviewModal";
 
-/* ── STATUS COLORS ── */
+/* ── STATUS COLORS (header badge, labels) ── */
 const STATUS_COLORS = {
   suspected: "#F59E0B",
   ongoing: "#EF4444",
-  resolved: "#16A34A",
-  "resolved-rca": "#16A34A",
+  resolved: "#22C55E",
+  "resolved-rca": "#15803D",
+};
+
+/* Same URLs as imapRevamBE/mailer/statusFlow.js — matches sent email timeline PNG */
+const FLOW_TIMELINE_BASE =
+  "https://cdn.taboola.com/images_incident_management/progress-timeline";
+
+const FLOW_TIMELINE_IMAGES = {
+  "suspected|suspected": [`${FLOW_TIMELINE_BASE}/suspected-rca-1.png`],
+  "suspected|ongoing": [`${FLOW_TIMELINE_BASE}/suspected-rca-2.png`],
+  "suspected|resolved": [`${FLOW_TIMELINE_BASE}/suspected-rca-3.png`],
+  "suspected|resolved with rca": [`${FLOW_TIMELINE_BASE}/suspected-rca-4.png`],
+  "ongoing|ongoing": [
+    `${FLOW_TIMELINE_BASE}/ongoing-rca-1.png`,
+    `${FLOW_TIMELINE_BASE}/ongoing-resolved-1.png`,
+  ],
+  "ongoing|resolved": [
+    `${FLOW_TIMELINE_BASE}/ongoing-rca-2.png`,
+    `${FLOW_TIMELINE_BASE}/ongoing-resolved-2.png`,
+  ],
+  "ongoing|resolved with rca": [`${FLOW_TIMELINE_BASE}/ongoing-rca-3.png`],
+  "resolved|resolved": [
+    `${FLOW_TIMELINE_BASE}/resolved-rca-1.png`,
+    `${FLOW_TIMELINE_BASE}/resolved-2.png`,
+  ],
+  "resolved|resolved with rca": [`${FLOW_TIMELINE_BASE}/resolved-rca-1.png`],
+  "resolved with rca|resolved with rca": [
+    `${FLOW_TIMELINE_BASE}/Resolved-%20RCA-2.png`,
+  ],
+};
+
+const normalizeForFlowKey = (s = "") => String(s).toLowerCase().trim();
+
+/* Same URLs as imapRevamBE/mailer/bannerFlow.js — key: `${department}|${status}` */
+const BANNER_BASE = "https://cdn.taboola.com/images_incident_management";
+const BANNER_FLOW = {
+  "Publisher|Suspected": [`${BANNER_BASE}/suspected-publisher.png`],
+  "Publisher|Ongoing": [`${BANNER_BASE}/ongoing-publisher.png`],
+  "Publisher|Resolved": [`${BANNER_BASE}/resolved-publisher.png`],
+  "Publisher|Resolved with RCA": [`${BANNER_BASE}/resolved-with-rca-publisher.png`],
+  "Publisher|Not an Issue": [`${BANNER_BASE}/not-an-issue-publisher.png`],
+  "Advertiser|Suspected": [`${BANNER_BASE}/suspected-advertiser.png`],
+  "Advertiser|Ongoing": [`${BANNER_BASE}/ongoing-advertiser.png`],
+  "Advertiser|Resolved": [`${BANNER_BASE}/resolved-advertiser.png`],
+  "Advertiser|Resolved with RCA": [`${BANNER_BASE}/resolved-with-rca-advertiser.png`],
+  "Advertiser|Not an Issue": [`${BANNER_BASE}/not-an-issue-advertiser.png`],
+  "General|Suspected": [`${BANNER_BASE}/suspected-general.png`],
+  "General|Ongoing": [`${BANNER_BASE}/ongoing-general.png`],
+  "General|Resolved": [`${BANNER_BASE}/resolved-general.png`],
+  "General|Resolved with RCA": [`${BANNER_BASE}/resolved-with-rca-general.png`],
+  "General|Not an Issue": [`${BANNER_BASE}/not-an-issue-general.png`],
+};
+
+/** Circle / connector colors when CDN image is unavailable (closer to Taboola assets) */
+const TIMELINE_NODE = {
+  suspected: { fill: "#F59E0B", line: "#F59E0B", label: "#D97706" },
+  ongoing: { fill: "#EF4444", line: "#EF4444", label: "#DC2626" },
+  resolved: { fill: "#22C55E", line: "#22C55E", label: "#16A34A" },
+  "resolved-rca": { fill: "#166534", line: "#22C55E", label: "#15803D" },
 };
 
 const severity_colorMap = {
@@ -39,6 +97,33 @@ const EmailTemplateLayout = ({ data }) => {
   const currentIndex = remainingStatus.findIndex(
     (s) => normalizeStatus(s.statusName) === normalizedStatus
   );
+
+  const flowTimelineImageSrc = (() => {
+    const first = remainingStatus[0]?.statusName;
+    const cur = data.radio.status;
+    if (!first || !cur || cur === "Not an Issue") return null;
+    const key = `${normalizeForFlowKey(first)}|${normalizeForFlowKey(cur)}`;
+    const urls = FLOW_TIMELINE_IMAGES[key];
+    if (!urls?.length) return null;
+    const knownIdx = data.radio.known_issue === "Yes" ? 1 : 0;
+    return urls[knownIdx] || urls[0];
+  })();
+
+  const bannerImageSrc = (() => {
+    const dept = data.departmentName;
+    const st = data.radio.status;
+    if (!dept || !st) return null;
+    const key = `${dept}|${st}`;
+    const urls = BANNER_FLOW[key];
+    return urls?.[0] ?? null;
+  })();
+
+  const timelineNodePalette = (stepKey) =>
+    TIMELINE_NODE[stepKey] || {
+      fill: "#D1D5DB",
+      line: "#E5E7EB",
+      label: "#9CA3AF",
+    };
 
   const InlineHtml = ({ html }) => (
     <span dangerouslySetInnerHTML={{ __html: (html || "").replace(/<p[^>]*>/gi, "").replace(/<\/p>/gi, "").replace(/<div[^>]*>/gi, "").replace(/<\/div>/gi, "") }} />
@@ -107,60 +192,105 @@ const EmailTemplateLayout = ({ data }) => {
       border: "1px solid #E5E7EB",
     }}>
 
-      {/* ═══ HEADER (blue gradient) ═══ */}
-      <table width="100%" cellPadding="0" cellSpacing="0" style={{ borderCollapse: "collapse", background: "linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)" }}>
-        <tbody>
-          <tr>
-            <td style={{ padding: "28px 36px" }}>
-              <table width="100%" cellPadding="0" cellSpacing="0">
-                <tbody>
-                  <tr>
-                    <td valign="top">
-                      <div style={{ fontSize: "22px", fontWeight: "700", color: "#FFFFFF", fontFamily: "'Poppins', Arial, sans-serif" }}>
-                        Incident Notification
-                      </div>
-                    </td>
-                    <td align="right" valign="top" style={{ fontSize: "16px", fontWeight: "700", color: "#E0E7FF", textAlign: "right", fontFamily: "'Poppins', Arial, sans-serif" }}>
-                      {data.departmentName}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ paddingTop: "14px" }}>
-                      <div style={{
-                        display: "inline-block",
-                        color: "#FFFFFF",
-                        border: `2px solid ${statusColor}`,
-                        padding: "6px 14px",
-                        borderRadius: "5px",
-                        fontWeight: "700",
-                        fontSize: "12px",
-                        letterSpacing: "0.5px",
-                        textTransform: "uppercase",
-                        fontFamily: "'Poppins', Arial, sans-serif",
-                      }}>
-                        {data.radio.status || "UNKNOWN"}
-                      </div>
-                    </td>
-                    <td align="right" style={{ paddingTop: "14px" }}>
-                      <img src={incidentLogo} alt="Taboola" width="95" style={{ display: "block", border: "0" }} />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {/* ═══ HEADER — CDN banner matches backend emailTemplate (bannerFlow) ═══ */}
+      {bannerImageSrc ? (
+        <table width="100%" cellPadding="0" cellSpacing="0" style={{ borderCollapse: "collapse" }}>
+          <tbody>
+            <tr>
+              <td style={{ padding: 0, lineHeight: 0 }}>
+                <img
+                  src={bannerImageSrc}
+                  alt="Incident banner"
+                  width="650"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    maxWidth: "650px",
+                    height: "auto",
+                  }}
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      ) : (
+        <table width="100%" cellPadding="0" cellSpacing="0" style={{ borderCollapse: "collapse", background: "linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)" }}>
+          <tbody>
+            <tr>
+              <td style={{ padding: "28px 36px" }}>
+                <table width="100%" cellPadding="0" cellSpacing="0">
+                  <tbody>
+                    <tr>
+                      <td valign="top">
+                        <div style={{ fontSize: "22px", fontWeight: "700", color: "#FFFFFF", fontFamily: "'Poppins', Arial, sans-serif" }}>
+                          Incident Notification
+                        </div>
+                      </td>
+                      <td align="right" valign="top" style={{ fontSize: "16px", fontWeight: "700", color: "#E0E7FF", textAlign: "right", fontFamily: "'Poppins', Arial, sans-serif" }}>
+                        {data.departmentName}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ paddingTop: "14px" }}>
+                        <div style={{
+                          display: "inline-block",
+                          color: "#FFFFFF",
+                          border: `2px solid ${statusColor}`,
+                          padding: "6px 14px",
+                          borderRadius: "5px",
+                          fontWeight: "700",
+                          fontSize: "12px",
+                          letterSpacing: "0.5px",
+                          textTransform: "uppercase",
+                          fontFamily: "'Poppins', Arial, sans-serif",
+                        }}>
+                          {data.radio.status || "UNKNOWN"}
+                        </div>
+                      </td>
+                      <td align="right" style={{ paddingTop: "14px" }}>
+                        <img src={incidentLogo} alt="Taboola" width="95" style={{ display: "block", border: "0" }} />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
 
-      {/* ═══ TIMELINE ═══ */}
-      {data.radio.status !== "Not an Issue" && remainingStatus.length > 0 && (
+      {/* ═══ TIMELINE — CDN image matches backend (PNG already includes title); fallback draws title + nodes ═══ */}
+      {data.radio.status !== "Not an Issue" &&
+        (flowTimelineImageSrc || remainingStatus.length > 0) && (
         <table width="100%" cellPadding="0" cellSpacing="0" style={{ borderCollapse: "collapse", borderBottom: "1px solid #E5E7EB" }}>
           <tbody>
             <tr>
-              <td style={{ padding: "28px 36px 24px 36px" }}>
-                <div style={{ fontSize: "12px", fontWeight: "600", color: "#6B7280", letterSpacing: "0.5px", marginBottom: "20px", fontFamily: "'Poppins', Arial, sans-serif" }}>
-                  Incident Progress Timeline
-                </div>
+              <td
+                style={{
+                  padding: flowTimelineImageSrc ? "4px 0" : "20px 36px 18px 36px",
+                }}
+              >
+                {!flowTimelineImageSrc && (
+                  <div style={{
+                    fontSize: "11px", fontWeight: "700", color: "#4B5563",
+                    letterSpacing: "1.2px", marginBottom: "16px",
+                    fontFamily: "'Poppins', Arial, sans-serif",
+                    textTransform: "uppercase",
+                  }}>
+                    Incident Progress Timeline
+                  </div>
+                )}
+                {flowTimelineImageSrc ? (
+                  <img
+                    src={flowTimelineImageSrc}
+                    alt="Incident progress timeline"
+                    style={{
+                      width: "100%",
+                      display: "block",
+                      margin: "0 auto",
+                    }}
+                  />
+                ) : (
                 <table width="100%" cellPadding="0" cellSpacing="0" style={{ borderCollapse: "collapse" }}>
                   <tbody>
                     <tr>
@@ -169,16 +299,19 @@ const EmailTemplateLayout = ({ data }) => {
                         const isCompleted = index < currentIndex;
                         const isCurrent = index === currentIndex;
                         const isPast = isCompleted || isCurrent;
+                        const pal = timelineNodePalette(key);
 
-                        const circleColor = isPast
-                          ? (STATUS_COLORS[key] || "#16A34A")
-                          : "#D1D5DB";
+                        const circleColor = isPast ? pal.fill : "#E5E7EB";
+                        const showTick = isCurrent && key === "resolved-rca";
 
-                        const showTick = isCurrent && (key === "resolved-rca");
+                        const segFrom = normalizeStatus(
+                          remainingStatus[index]?.statusName
+                        );
+                        const segPal = timelineNodePalette(segFrom);
+                        const connectorColor = isCompleted ? segPal.line : "#E5E7EB";
 
-                        const connectorColor = isCompleted
-                          ? (STATUS_COLORS[key] || "#16A34A")
-                          : "#D1D5DB";
+                        const dot = 44;
+                        const r = dot / 2;
 
                         return (
                           <td key={index} style={{
@@ -186,36 +319,33 @@ const EmailTemplateLayout = ({ data }) => {
                             textAlign: "center", verticalAlign: "top",
                             position: "relative",
                           }}>
-                            {/* Circle */}
                             <div style={{
-                              width: "32px", height: "32px", borderRadius: "50%",
+                              width: `${dot}px`, height: `${dot}px`, borderRadius: "50%",
                               backgroundColor: circleColor,
                               margin: "0 auto 10px",
-                              lineHeight: "32px", textAlign: "center",
-                              fontSize: showTick ? "16px" : "13px",
+                              lineHeight: `${dot}px`, textAlign: "center",
+                              fontSize: showTick ? "20px" : "14px",
                               fontWeight: "700",
                               color: isPast ? "#FFFFFF" : "#9CA3AF",
+                              boxShadow: isCurrent ? "0 0 0 3px rgba(255,255,255,1), 0 0 0 5px rgba(0,0,0,0.06)" : "none",
                             }}>
                               {showTick ? "✓" : ""}
                             </div>
-
-                            {/* Label */}
                             <div style={{
                               fontSize: "13px",
-                              fontWeight: isPast ? "700" : "400",
-                              color: isPast ? (STATUS_COLORS[key] || "#16A34A") : "#9CA3AF",
+                              fontWeight: isPast ? "700" : "500",
+                              color: isPast ? pal.label : "#9CA3AF",
                               fontFamily: "'Poppins', Arial, sans-serif",
+                              lineHeight: "1.35",
                             }}>
                               {step.statusName}
                             </div>
-
-                            {/* Connector line */}
                             {index < remainingStatus.length - 1 && (
                               <div style={{
-                                position: "absolute", top: "14px",
-                                left: "calc(50% + 20px)",
-                                width: "calc(100% - 40px)",
-                                height: "3px", borderRadius: "2px",
+                                position: "absolute", top: `${r - 2}px`,
+                                left: `calc(50% + ${r}px)`,
+                                width: `calc(100% - ${dot}px)`,
+                                height: "4px", borderRadius: "2px",
                                 backgroundColor: connectorColor,
                               }} />
                             )}
@@ -225,6 +355,7 @@ const EmailTemplateLayout = ({ data }) => {
                     </tr>
                   </tbody>
                 </table>
+                )}
               </td>
             </tr>
           </tbody>

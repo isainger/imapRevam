@@ -98,16 +98,12 @@ const Bar = () => {
 
     // inputBox
     if (
-      // (current.inputBox.inputNumber || "") !==
-      //   (originalIncident.incident_number || "") ||
       (current.inputBox.subject || "") !==
         (originalIncident.incident_subject || "") ||
       (current.inputBox.incidentLink || "") !==
         (originalIncident.incident_link || "") ||
       (current.inputBox.performer || "") !==
-        (originalIncident.performer || "") ||
-      (current.inputBox.revenueImpactDetails || "") !==
-        (originalIncident.revenue_impact_details || "")
+        (originalIncident.performer || "")
     )
       return true;
 
@@ -128,6 +124,17 @@ const Bar = () => {
       (current.radio.known_issue || "") !== (originalIncident.known_issue || "")
     )
       return true;
+
+    // Revenue details only when "Yes" (ignore stale text hidden behind "No")
+    const effRevenueDetails =
+      current.radio.revenueImpact === "Yes"
+        ? current.inputBox.revenueImpactDetails || ""
+        : "";
+    const origRevenueDetails =
+      originalIncident.revenue_impact === "Yes"
+        ? originalIncident.revenue_impact_details || ""
+        : "";
+    if (effRevenueDetails !== origRevenueDetails) return true;
 
     // remainingStatus comparison (ignore color/icons)
     const currentStatuses = (current.radio.remainingStatus || []).map(
@@ -182,25 +189,44 @@ const Bar = () => {
     const originalResolvedRca = originalIncident.resolved_with_rca_time
       ? new Date(originalIncident.resolved_with_rca_time).getTime()
       : null;
-    if (
-      currentStart !== originalStart ||
-      currentDiscovered !== originalDiscovered ||
-      currentNextUpdate !== originalNextUpdate ||
-      currentResolved !== originalResolved ||
-      currentResolvedRca !== originalResolvedRca
-    )
-      return true;
 
-    // text areas
+    const curStatus = current.radio.status || "";
+    const needsResolved =
+      curStatus === "Resolved" || curStatus === "Resolved with RCA";
+    const needsRca = curStatus === "Resolved with RCA";
+    const nextYes = current.radio.nextUpdate === "Yes";
+
+    const effNextUpdate = nextYes ? currentNextUpdate : null;
+    const effResolvedTime = needsResolved ? currentResolved : null;
+    const effResolvedRcaTime = needsRca ? currentResolvedRca : null;
+
+    if (currentStart !== originalStart || currentDiscovered !== originalDiscovered)
+      return true;
+    if (effNextUpdate !== originalNextUpdate) return true;
+    if (effResolvedTime !== originalResolved) return true;
+    if (effResolvedRcaTime !== originalResolvedRca) return true;
+
+    // text areas — compare rich text only when that section is active (same rules as save payload)
     const ta = current.textArea;
     const origTa = originalIncident;
+    const effStatusUpdate =
+      current.statusUpdate === true ? ta.statusUpdateDetails || "" : "";
+    const origStatusUpdate = origTa.status_update_details || "";
+    const effWorkaround =
+      current.radio.workaround === "Yes" ? ta.workaroundDetails || "" : "";
+    const origWorkaround =
+      originalIncident.workaround === "Yes" ? origTa.workaround_details || "" : "";
+    const effResolvedDetails = needsResolved ? ta.resolvedDetails || "" : "";
+    const origResolvedDetails = needsResolved ? origTa.resolved_details || "" : "";
+    const effRcaDetails = needsRca ? ta.resolvedwithRcaDetails || "" : "";
+    const origRcaDetails = needsRca ? origTa.resolved_with_rca_details || "" : "";
+
     if (
       (ta.incidentDetails || "") !== (origTa.incident_details || "") ||
-      (ta.statusUpdateDetails || "") !== (origTa.status_update_details || "") ||
-      (ta.workaroundDetails || "") !== (origTa.workaround_details || "") ||
-      (ta.resolvedDetails || "") !== (origTa.resolved_details || "") ||
-      (ta.resolvedwithRcaDetails || "") !==
-        (origTa.resolved_with_rca_details || "")
+      effStatusUpdate !== origStatusUpdate ||
+      effWorkaround !== origWorkaround ||
+      effResolvedDetails !== origResolvedDetails ||
+      effRcaDetails !== origRcaDetails
     )
       return true;
 
@@ -611,6 +637,19 @@ const Bar = () => {
   const handleChange = (field, value) => {
     // 1. Always update UI immediately (fixes the inputBox overwrite lag)
     form.setFieldValue(field, value);
+
+    if (field === "radio.workaround" && value !== "Yes") {
+      form.setFieldValue("textArea.workaroundDetails", "");
+    }
+    if (field === "radio.nextUpdate" && value !== "Yes") {
+      form.setFieldValue("dateTime.nextUpdateTime", {
+        local: null,
+        utc: null,
+      });
+    }
+    if (field === "radio.revenueImpact" && value !== "Yes") {
+      form.setFieldValue("inputBox.revenueImpactDetails", "");
+    }
 
     // auto populate incident number ON CHANGE
     if (field === "inputBox.incidentLink") {
@@ -2030,12 +2069,16 @@ gap-0 flex-1 min-h-0"
                         <button
                           type="button"
                           className={`imap-toggle-btn${form.values.statusUpdate ? " active" : ""}`}
-                          onClick={() =>
-                            form.setFieldValue(
-                              "statusUpdate",
-                              !form.values.statusUpdate
-                            )
-                          }
+                          onClick={() => {
+                            const next = !form.values.statusUpdate;
+                            form.setFieldValue("statusUpdate", next);
+                            if (!next) {
+                              form.setFieldValue(
+                                "textArea.statusUpdateDetails",
+                                ""
+                              );
+                            }
+                          }}
                         >
                           <i
                             className={`fa-solid ${form.values.statusUpdate ? "fa-minus" : "fa-plus"}`}
