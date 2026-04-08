@@ -25,6 +25,8 @@ const normalizeStatus = (status) => {
 };
 
 const EmailTemplateLayout = ({ data }) => {
+  // console.log(data);
+  
   const [recipientsModalOpen, setRecipientsModalOpen] = useState(false);
   const normalizedStatus = normalizeStatus(data.radio.status);
 
@@ -91,6 +93,12 @@ const EmailTemplateLayout = ({ data }) => {
     fontSize: "14px", fontWeight: "500", color: "#111827",
     fontFamily: "'Poppins', Arial, sans-serif",
   };
+
+  const showResolvedOnRow = ["resolved", "resolved-rca"].includes(normalizedStatus);
+  const incidentTypeDisplay =
+    (data.radio.incidentType != null && String(data.radio.incidentType).trim() !== "")
+      ? String(data.radio.incidentType).trim()
+      : "—";
 
   const emailPreview = (
     <div style={{
@@ -287,12 +295,23 @@ const EmailTemplateLayout = ({ data }) => {
             </td>
           </tr>
 
-          {/* Resolved row */}
-          {["resolved", "resolved-rca"].includes(normalizedStatus) && (
+          {/* Resolved on (when resolved) + Incident type: full-width type row if unresolved; 2-col Resolved | Type if resolved */}
+          {showResolvedOnRow ? (
             <tr>
-              <td colSpan="2" style={{ padding: "0 36px 16px 36px", borderTop: "1px solid #F3F4F6", paddingTop: "16px" }}>
+              <td style={{ width: "50%", padding: "0 16px 16px 36px", borderTop: "1px solid #F3F4F6", paddingTop: "16px", verticalAlign: "top" }}>
                 <div style={labelStyle}>Resolved On (UTC)</div>
                 <div style={{ ...valueStyle, color: "#16A34A" }}>{formatDate(data.dateTime.resolvedTime?.utc) || "—"}</div>
+              </td>
+              <td style={{ width: "50%", padding: "0 36px 16px 16px", borderTop: "1px solid #F3F4F6", paddingTop: "16px", borderLeft: "1px solid #F3F4F6", verticalAlign: "top" }}>
+                <div style={labelStyle}>Incident Type</div>
+                <div style={valueStyle}>{incidentTypeDisplay}</div>
+              </td>
+            </tr>
+          ) : (
+            <tr>
+              <td colSpan="2" style={{ padding: "0 36px 16px 36px", borderTop: "1px solid #F3F4F6", paddingTop: "16px" }}>
+                <div style={labelStyle}>Incident Type</div>
+                <div style={valueStyle}>{incidentTypeDisplay}</div>
               </td>
             </tr>
           )}
@@ -321,7 +340,7 @@ const EmailTemplateLayout = ({ data }) => {
           <tr>
             <td style={{ width: "50%", padding: "0 16px 16px 36px", borderTop: "1px solid #F3F4F6", paddingTop: "16px", verticalAlign: "top" }}>
               <div style={labelStyle}>Level of Impact</div>
-              <div style={valueStyle}>{data.radio.incidentType || "—"}</div>
+              <div style={valueStyle}>{data.dropDown.serviceImpacted || "—"}</div>
             </td>
             <td style={{ width: "50%", padding: "0 36px 16px 16px", borderTop: "1px solid #F3F4F6", paddingTop: "16px", borderLeft: "1px solid #F3F4F6", verticalAlign: "top" }}>
               <div style={labelStyle}>Region Impacted</div>

@@ -2206,7 +2206,8 @@ gap-0 flex-1 min-h-0"
                           "dateTime.discoveredTime"
                         )}
                       />
-                      {form.values.radio.status === "Resolved" && (
+                      {form.values.radio.status === ("Resolved") || 
+                      form.values.radio.status === ("Resolved with RCA") && (
                         <DateTimeSelector
                           value={form.values.dateTime.resolvedTime.local}
                           onChange={(val) =>
