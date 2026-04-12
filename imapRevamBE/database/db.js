@@ -1,7 +1,6 @@
 /**
- * Committed behaviour = production: pool with ssl: false (what works in prod).
- * For a different local setup (e.g. cert file), copy db.local.example.js to
- * db.local.js in this folder — that file is gitignored and never goes to Tabbucket.
+ * Default (CI / prod): TLS when DB_SSL_CA is set (e.g. k8s-mounted CA); otherwise ssl off.
+ * Optional override: copy db.local.example.js → db.local.js (gitignored) for custom dev pools.
  */
 const path = require("path");
 const fs = require("fs");
@@ -15,13 +14,18 @@ if (fs.existsSync(localPath)) {
 
   dotenv.config();
 
+  const ssl =
+    process.env.DB_SSL_CA && String(process.env.DB_SSL_CA).trim() !== ""
+      ? { ca: fs.readFileSync(process.env.DB_SSL_CA) }
+      : false;
+
   const pool = mysql.createPool({
     host: process.env.DB_HOST || "localhost",
     port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER || "root",
     password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME,
-    ssl: false,
+    ssl,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
