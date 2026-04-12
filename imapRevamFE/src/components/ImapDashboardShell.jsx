@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { fetchDashboardInsights } from "../services/api";
 import { fetchIncidentByNumber } from "../services/incidentOperations";

@@ -1,3 +1,4 @@
+import React from "react";
 const emailGroups = {
   Publisher: [
     "ps-ads-global-tech-solutions@taboola.com",

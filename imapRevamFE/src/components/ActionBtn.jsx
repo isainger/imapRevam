@@ -1,3 +1,4 @@
+import React from "react";
 const ActionBtn = ({ btnText, onClick, type, btnFont }) => {
   const getIcon = () => {
     switch (btnFont) {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Check, AlertCircle } from "lucide-react";
 import { useForm } from "@mantine/form";
 import groupedProductOptions from "./data/GroupedProductItems";
@@ -44,6 +44,8 @@ const Bar = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmStage, setConfirmStage] = useState("confirm"); // confirm | success
   const [confirmPurpose, setConfirmPurpose] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdCaseUrl, setCreatedCaseUrl] = useState(null);
   const [saving, setSaving] = useState(false);
   const [payload, setPayload] = useState(null);
   const [submitProgress, setSubmitProgress] = useState(0);
@@ -651,6 +653,7 @@ const Bar = () => {
     if (form.values.radio.inputIncident === "No" && originalIncident) {
       form.reset(); // full reset to initialValues
       setOriginalIncident(null); // clear fetched reference
+      setCreatedCaseUrl(null);
     }
   }, [form.values.radio.inputIncident]);
 
@@ -847,6 +850,7 @@ const Bar = () => {
     form.reset();
     setOriginalIncident(null);
     setOldIncidentData(null);
+    setCreatedCaseUrl(null);
 
     setFormStep(1);
     setDepartmentLocked(false); // ✅ RESET HERE
@@ -920,6 +924,7 @@ const Bar = () => {
       incidentAction.actionType === "create" &&
       !originalIncident
     ) {
+      setIsSubmitting(true);
       try {
         const extractEmail = (performer) => {
           const m = performer?.match(/\(([^)]+)\)$/);
@@ -977,13 +982,17 @@ const Bar = () => {
 
         incidentLinkValue = caseData.sf_case_url;
         form.setFieldValue("inputBox.incidentLink", incidentLinkValue);
+        setCreatedCaseUrl(caseData.sf_case_url);
       } catch (err) {
+        setIsSubmitting(false);
         notifications.show({
           title: "Case Creation Failed",
           message: `Could not create Salesforce case: ${err.message}`,
           color: "red",
         });
         return;
+      } finally {
+        setIsSubmitting(false);
       }
     }
 
@@ -2498,13 +2507,77 @@ const Bar = () => {
                           <i className="fa-solid fa-envelope-open-text" />
                           Preview Email
                         </button>
+                        {isSubmitting && (
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: "10px",
+                            padding: "10px 14px", marginBottom: "8px",
+                            borderRadius: "8px",
+                            background: "var(--imap-form-brand-dim)",
+                            border: "1px solid var(--imap-form-brand)",
+                          }}>
+                            <i className="fa-solid fa-spinner fa-spin" style={{ color: "var(--imap-form-brand)", fontSize: "13px" }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--imap-form-brand)", marginBottom: "5px" }}>
+                                Creating Salesforce Case...
+                              </div>
+                              <div style={{ height: "4px", borderRadius: "2px", background: "var(--imap-form-brand-dim)", overflow: "hidden" }}>
+                                <div style={{
+                                  height: "100%", borderRadius: "2px", background: "var(--imap-form-brand)",
+                                  animation: "sf-progress-slide 1.2s ease-in-out infinite",
+                                }} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {createdCaseUrl && !isSubmitting && (
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: "10px",
+                            padding: "10px 14px", marginBottom: "8px",
+                            borderRadius: "8px",
+                            background: "rgba(5,150,105,0.1)",
+                            border: "1px solid rgba(5,150,105,0.4)",
+                          }}>
+                            <i className="fa-solid fa-circle-check" style={{ color: "#10b981", fontSize: "14px", flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: "12px", fontWeight: 600, color: "#10b981", marginBottom: "3px" }}>
+                                Salesforce Case Created
+                              </div>
+                              <a
+                                href={createdCaseUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontSize: "11px", color: "var(--imap-form-brand)", wordBreak: "break-all", textDecoration: "none" }}
+                              >
+                                {createdCaseUrl.match(/\/Case\/([^/]+)\//)?.[1] ?? createdCaseUrl}
+                              </a>
+                            </div>
+                            <button
+                              type="button"
+                              title="Copy link"
+                              onClick={() => navigator.clipboard.writeText(createdCaseUrl)}
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--imap-form-brand)", padding: "4px", flexShrink: 0 }}
+                            >
+                              <i className="fa-regular fa-copy" style={{ fontSize: "13px" }} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Dismiss"
+                              onClick={() => setCreatedCaseUrl(null)}
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--imap-form-muted)", padding: "4px", flexShrink: 0 }}
+                            >
+                              <i className="fa-solid fa-xmark" style={{ fontSize: "13px" }} />
+                            </button>
+                          </div>
+                        )}
                         <button
                           type="button"
                           className="f-btn-submit"
                           onClick={handleSubmit}
+                          disabled={isSubmitting}
+                          style={isSubmitting ? { opacity: 0.6, cursor: "not-allowed" } : {}}
                         >
-                          <i className="fa-solid fa-paper-plane" />
-                          Submit
+                          <i className={isSubmitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-paper-plane"} />
+                          {isSubmitting ? "Creating Case..." : "Submit"}
                         </button>
                       </div>
                     </div>

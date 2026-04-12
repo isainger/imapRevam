@@ -1,3 +1,4 @@
+import React from "react";
 import { ActionIcon, Tooltip } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
 import { Moon, Sun } from "lucide-react";

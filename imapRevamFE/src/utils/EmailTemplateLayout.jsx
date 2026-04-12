@@ -671,8 +671,9 @@ const EmailTemplateLayout = ({ data, previewDark = false }) => {
             <td colSpan="2" style={{ backgroundColor: pc.footerBg, padding: "18px 36px", textAlign: "center" }}>
               <table cellPadding="0" cellSpacing="0" style={{ margin: "0 auto", borderCollapse: "collapse" }}>
                 <tbody><tr>
+                  {data.inputBox?.incidentLink && (
                   <td style={{ paddingRight: "8px" }}>
-                    <a href={data.inputBox?.incidentLink || "#"} target="_blank" rel="noopener noreferrer" style={{
+                    <a href={data.inputBox.incidentLink} target="_blank" rel="noopener noreferrer" style={{
                       display: "inline-block", padding: "9px 22px", backgroundColor: "#2563EB",
                       color: "#FFFFFF", borderRadius: "6px", fontSize: "12px", fontWeight: "600",
                       textDecoration: "none", fontFamily: "'Poppins', Arial, sans-serif",
@@ -681,6 +682,7 @@ const EmailTemplateLayout = ({ data, previewDark = false }) => {
                       <span style={{ marginRight: "6px" }}>🔗</span>View Incident
                     </a>
                   </td>
+                  )}
                   <td style={{ paddingLeft: "8px" }}>
                     <button
                       onClick={() => setRecipientsModalOpen(true)}

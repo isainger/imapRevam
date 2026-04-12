@@ -1,3 +1,4 @@
+import React from "react";
 import { Modal, useComputedColorScheme } from "@mantine/core";
 
 /* ── Inject keyframes once ── */
