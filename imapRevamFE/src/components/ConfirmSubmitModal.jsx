@@ -1,5 +1,34 @@
 import React, { useEffect, useRef } from "react";
 import { Modal, useComputedColorScheme } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+
+/** Clipboard API needs https or localhost; fallback works more places. */
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "readonly");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    ta.style.top = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 /* ── Inject keyframes once ── */
 const STYLE_ID = "confirm-modal-keyframes";
@@ -427,13 +456,27 @@ const ConfirmSubmitModal = ({
                 ref={copyBtnRef}
                 type="button"
                 title="Copy link"
-                onClick={() => {
-                  navigator.clipboard.writeText(sfCaseUrl);
-                  if (copyBtnRef.current) {
-                    copyBtnRef.current.style.color = C.green.solid;
-                    setTimeout(() => {
-                      if (copyBtnRef.current) copyBtnRef.current.style.color = "";
-                    }, 1200);
+                onClick={async () => {
+                  const ok = await copyToClipboard(sfCaseUrl);
+                  if (ok) {
+                    notifications.show({
+                      title: "Copied",
+                      message: "Salesforce case link is on your clipboard.",
+                      color: "teal",
+                    });
+                    if (copyBtnRef.current) {
+                      copyBtnRef.current.style.color = C.green.solid;
+                      setTimeout(() => {
+                        if (copyBtnRef.current) copyBtnRef.current.style.color = "";
+                      }, 1200);
+                    }
+                  } else {
+                    notifications.show({
+                      title: "Could not copy",
+                      message:
+                        "Use a secure URL (https) or select the link and copy manually (Ctrl/Cmd+C).",
+                      color: "orange",
+                    });
                   }
                 }}
                 style={{
@@ -443,7 +486,7 @@ const ConfirmSubmitModal = ({
                   transition: "color .2s",
                 }}
               >
-                <i className="fa-regular fa-copy" style={{ fontSize: 14 }} />
+                <i className="fa-solid fa-copy" style={{ fontSize: 14 }} />
               </button>
             </div>
           )}
