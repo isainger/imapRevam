@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Modal, useComputedColorScheme } from "@mantine/core";
 
 /* ── Inject keyframes once ── */
@@ -17,6 +17,7 @@ if (typeof document !== "undefined" && !document.getElementById(STYLE_ID)) {
       0%   { stroke-dashoffset: 50 }
       100% { stroke-dashoffset: 0  }
     }
+    @keyframes cmCountPulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.18) } }
   `;
   document.head.appendChild(s);
 }
@@ -32,7 +33,6 @@ const C = {
 
 /* ── Primitive helpers ── */
 
-/** Full-bleed animated entry wrapper */
 const Panel = ({ children, delay = 0 }) => (
   <div style={{
     fontFamily: F,
@@ -44,7 +44,6 @@ const Panel = ({ children, delay = 0 }) => (
   </div>
 );
 
-/** Pulsing icon halo — light modal uses a soft metallic disc instead of near-black */
 const Halo = ({ color, pulse, size = 72, children }) => {
   const scheme = useComputedColorScheme("dark", { getInitialValueInEffect: false });
   const light = scheme === "light";
@@ -102,13 +101,13 @@ const Hr = () => (
   <div style={{ width: "100%", height: 1, background: "var(--imap-border-strong)", margin: "8px 0" }} />
 );
 
-/* Sleek button — no ActionBtn dependency needed */
-const Btn = ({ label, onClick, primary = false, color = C.blue }) => {
+const Btn = ({ label, onClick, primary = false, color = C.blue, disabled = false }) => {
   const base = {
     fontFamily: F, fontSize: 13, fontWeight: 600,
-    padding: "9px 26px", borderRadius: 8, cursor: "pointer",
+    padding: "9px 26px", borderRadius: 8, cursor: disabled ? "not-allowed" : "pointer",
     transition: "transform .15s, box-shadow .15s",
     outline: "none", letterSpacing: "0.15px",
+    opacity: disabled ? 0.55 : 1,
   };
   return primary
     ? <button
@@ -118,9 +117,10 @@ const Btn = ({ label, onClick, primary = false, color = C.blue }) => {
           color: "#fff", border: "none",
           boxShadow: `0 4px 14px -2px ${color.ring}`,
         }}
-        onMouseEnter={e => { e.currentTarget.style.transform="translateY(-1px)"; e.currentTarget.style.boxShadow=`0 7px 20px -2px ${color.ring}`; }}
-        onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)";   e.currentTarget.style.boxShadow=`0 4px 14px -2px ${color.ring}`; }}
-        onClick={onClick}
+        onMouseEnter={e => { if (!disabled) { e.currentTarget.style.transform="translateY(-1px)"; e.currentTarget.style.boxShadow=`0 7px 20px -2px ${color.ring}`; }}}
+        onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow=`0 4px 14px -2px ${color.ring}`; }}
+        onClick={disabled ? undefined : onClick}
+        disabled={disabled}
       >{label}</button>
     : <button
         style={{
@@ -130,20 +130,54 @@ const Btn = ({ label, onClick, primary = false, color = C.blue }) => {
           border: "1.5px solid var(--imap-border-strong)",
           boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
         }}
-        onMouseEnter={e => { e.currentTarget.style.background="var(--imap-glass-1)"; e.currentTarget.style.borderColor="var(--imap-brand)"; }}
+        onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background="var(--imap-glass-1)"; e.currentTarget.style.borderColor="var(--imap-brand)"; }}}
         onMouseLeave={e => { e.currentTarget.style.background="var(--imap-glass-08)"; e.currentTarget.style.borderColor="var(--imap-border-strong)"; }}
-        onClick={onClick}
+        onClick={disabled ? undefined : onClick}
+        disabled={disabled}
       >{label}</button>;
 };
 
+/* ── Dual-ring spinner (reused in fetching + sf-creating) ── */
+const DualRingSpinner = ({ color, icon, size = 68 }) => (
+  <div style={{ position: "relative", width: size, height: size }}>
+    <svg width={size} height={size} style={{ position: "absolute", inset: 0 }}>
+      <circle cx={size/2} cy={size/2} r={size/2 - 6} fill="none" stroke={color.ring} strokeWidth="4" />
+    </svg>
+    <svg width={size} height={size} style={{ position: "absolute", inset: 0, animation: "cmSpin .75s linear infinite" }}>
+      <circle cx={size/2} cy={size/2} r={size/2 - 6} fill="none" stroke={color.solid}
+        strokeWidth="4" strokeLinecap="round"
+        strokeDasharray="44 132" />
+    </svg>
+    <div style={{
+      position: "absolute", inset: 14, borderRadius: "50%",
+      background: `${color.solid}26`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <i className={icon} style={{ color: color.solid, fontSize: 16 }} />
+    </div>
+  </div>
+);
+
 /* ══════════════════════════════════════════════════════════ */
 
-const ConfirmSubmitModal = ({ opened, stage, submitProgress, purpose, onCancel, onConfirm }) => {
+const ConfirmSubmitModal = ({
+  opened, stage, submitProgress, purpose,
+  onCancel, onConfirm,
+  /* SF props */
+  sfCaseMode,
+  sfCaseUrl,
+  sfCountdown,
+  sfError,
+  onSfSubmitNow,
+  onSfSubmitAnyway,
+}) => {
   const scheme = useComputedColorScheme("dark", { getInitialValueInEffect: false });
   const lightUi = scheme === "light";
   const isExit = purpose === "exit";
   const isSwitchFlow = purpose === "switchFlow";
   const isDiscardPrompt = isExit || isSwitchFlow;
+
+  const copyBtnRef = useRef(null);
 
   return (
     <Modal
@@ -172,24 +206,7 @@ const ConfirmSubmitModal = ({ opened, stage, submitProgress, purpose, onCancel, 
       {/* ── FETCHING ── */}
       {stage === "fetching" && (
         <Panel>
-          {/* Dual-ring spinner */}
-          <div style={{ position: "relative", width: 68, height: 68 }}>
-            <svg width="68" height="68" style={{ position: "absolute", inset: 0 }}>
-              <circle cx="34" cy="34" r="28" fill="none" stroke={C.blue.ring} strokeWidth="4" />
-            </svg>
-            <svg width="68" height="68" style={{ position: "absolute", inset: 0, animation: "cmSpin .75s linear infinite" }}>
-              <circle cx="34" cy="34" r="28" fill="none" stroke={C.blue.solid}
-                strokeWidth="4" strokeLinecap="round"
-                strokeDasharray="44 132" />
-            </svg>
-            <div style={{
-              position: "absolute", inset: 14, borderRadius: "50%",
-              background: "rgba(0,102,255,0.15)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <i className="fa-solid fa-database" style={{ color: C.blue.solid, fontSize: 16 }} />
-            </div>
-          </div>
+          <DualRingSpinner color={C.blue} icon="fa-solid fa-database" />
           <Title>Fetching Incident</Title>
           <Caption>Retrieving the latest data — hang tight…</Caption>
         </Panel>
@@ -226,7 +243,6 @@ const ConfirmSubmitModal = ({ opened, stage, submitProgress, purpose, onCancel, 
       {/* ── SUBMITTING ── */}
       {stage === "submitting" && (
         <Panel>
-          {/* SVG circular progress */}
           <div style={{ position: "relative", width: 86, height: 86 }}>
             <svg width="86" height="86" style={{ transform: "rotate(-90deg)" }}>
               <circle cx="43" cy="43" r="36" fill="none" stroke={C.blue.ring} strokeWidth="5" />
@@ -258,8 +274,6 @@ const ConfirmSubmitModal = ({ opened, stage, submitProgress, purpose, onCancel, 
             <div style={{ fontSize: 15, fontWeight: 600, color: "var(--imap-text-bright)", marginBottom: 12 }}>
               Submitting Incident
             </div>
-
-            {/* Shimmer track */}
             <div style={{ width: "100%", height: 5, background: C.blue.ring, borderRadius: 99, overflow: "hidden" }}>
               <div style={{
                 height: "100%",
@@ -271,7 +285,6 @@ const ConfirmSubmitModal = ({ opened, stage, submitProgress, purpose, onCancel, 
                 transition: "width 0.35s ease",
               }} />
             </div>
-
             <div style={{ fontSize: 11, color: "var(--imap-text-muted)", marginTop: 8, letterSpacing: "0.5px" }}>
               Do not close this window
             </div>
@@ -311,9 +324,27 @@ const ConfirmSubmitModal = ({ opened, stage, submitProgress, purpose, onCancel, 
                 ? "You have unsaved changes that will be lost if you leave now. Are you sure?"
                 : isSwitchFlow
                   ? "Your current draft or loaded incident will be discarded. Continue?"
-                  : "Please confirm all details are correct before submitting the incident."}
+                  : sfCaseMode
+                    ? "A Salesforce case will be created automatically, then the incident will be submitted. Please confirm all details are correct."
+                    : "Please confirm all details are correct before submitting the incident."}
             </Caption>
           </div>
+
+          {/* SF badge when auto-create is on */}
+          {sfCaseMode && !isDiscardPrompt && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 7,
+              background: lightUi ? "rgba(22,163,74,0.1)" : "rgba(74,222,128,0.1)",
+              border: lightUi ? "1px solid rgba(22,163,74,0.35)" : "1px solid rgba(74,222,128,0.3)",
+              borderRadius: 20, padding: "5px 14px",
+              fontSize: 12, fontWeight: 600,
+              color: lightUi ? C.green.text : "#4ade80",
+              animation: "cmFloatUp .3s .18s ease both",
+            }}>
+              <i className="fa-solid fa-cloud" style={{ fontSize: 11 }} />
+              Salesforce case will be created first
+            </div>
+          )}
 
           <Hr />
 
@@ -329,10 +360,177 @@ const ConfirmSubmitModal = ({ opened, stage, submitProgress, purpose, onCancel, 
         </Panel>
       )}
 
+      {/* ── SF CREATING ── */}
+      {stage === "sf-creating" && (
+        <Panel>
+          <DualRingSpinner color={C.green} icon="fa-solid fa-cloud" />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <Title>Creating Salesforce Case</Title>
+            <Caption>Connecting to Salesforce — this may take a moment…</Caption>
+          </div>
+        </Panel>
+      )}
+
+      {/* ── SF SUCCESS ── */}
+      {stage === "sf-success" && (
+        <Panel>
+          {/* Green halo */}
+          <div style={{ position: "relative", width: 68, height: 68 }}>
+            <div style={{
+              position: "absolute", inset: -5, borderRadius: "50%",
+              background: C.green.ring,
+              animation: "cmPulse 2.2s ease-in-out infinite",
+            }} />
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: "50%",
+              background: `linear-gradient(135deg, ${C.green.grad}, ${C.green.solid})`,
+              boxShadow: `0 8px 24px -4px ${C.green.ring}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              animation: "cmPopIn .45s cubic-bezier(.34,1.56,.64,1) both",
+            }}>
+              <i className="fa-solid fa-circle-check" style={{ color: "#fff", fontSize: 28 }} />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <Title color={lightUi ? C.green.text : "#4ade80"} delay="0.1s">
+              Salesforce Case Created!
+            </Title>
+            <Caption delay="0.16s">Copy the case link below, then submit the incident.</Caption>
+          </div>
+
+          {/* Case URL row */}
+          {sfCaseUrl && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: "var(--imap-glass-08)",
+              border: "1px solid var(--imap-border-strong)",
+              borderRadius: 8, padding: "8px 12px",
+              width: "100%", boxSizing: "border-box",
+              animation: "cmFloatUp .3s .22s ease both",
+            }}>
+              <a
+                href={sfCaseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1, fontSize: 12, fontWeight: 600,
+                  color: "var(--imap-brand)",
+                  textDecoration: "none",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}
+                title={sfCaseUrl}
+              >
+                {sfCaseUrl.match(/\/Case\/([^/]+)\//)?.[1] ?? sfCaseUrl}
+              </a>
+              <button
+                ref={copyBtnRef}
+                type="button"
+                title="Copy link"
+                onClick={() => {
+                  navigator.clipboard.writeText(sfCaseUrl);
+                  if (copyBtnRef.current) {
+                    copyBtnRef.current.style.color = C.green.solid;
+                    setTimeout(() => {
+                      if (copyBtnRef.current) copyBtnRef.current.style.color = "";
+                    }, 1200);
+                  }
+                }}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--imap-text-primary)", padding: "3px 5px",
+                  borderRadius: 4, flexShrink: 0,
+                  transition: "color .2s",
+                }}
+              >
+                <i className="fa-regular fa-copy" style={{ fontSize: 14 }} />
+              </button>
+            </div>
+          )}
+
+          {/* Countdown */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            fontSize: 13, color: "var(--imap-text-primary)",
+            animation: "cmFloatUp .3s .28s ease both",
+          }}>
+            <span>Submitting in</span>
+            <span style={{
+              fontWeight: 800, fontSize: 20, color: "var(--imap-brand)",
+              minWidth: 24, textAlign: "center",
+              animation: sfCountdown > 0 ? "cmCountPulse .9s ease-in-out infinite" : "none",
+            }}>
+              {sfCountdown}
+            </span>
+            <span>s…</span>
+          </div>
+
+          <Btn label="Submit Now" onClick={onSfSubmitNow} primary color={C.blue} />
+        </Panel>
+      )}
+
+      {/* ── SF ERROR ── */}
+      {stage === "sf-error" && (
+        <Panel>
+          <Halo color={C.red} pulse size={72}>
+            <i className="fa-solid fa-triangle-exclamation" style={{ color: C.red.solid, fontSize: 22 }} />
+          </Halo>
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <Title color="#f87171">Case Creation Failed</Title>
+            <Caption>
+              {sfError
+                ? sfError.length > 90 ? sfError.slice(0, 87) + "…" : sfError
+                : "Could not create the Salesforce case."}
+            </Caption>
+          </div>
+
+          <Hr />
+
+          <div style={{
+            display: "flex", flexDirection: "column", gap: 8,
+            width: "100%", alignItems: "center",
+          }}>
+            {/* Retry */}
+            <Btn label="↺  Retry Case Creation" onClick={onConfirm} primary color={C.blue} />
+
+            {/* Open SF manually */}
+            <button
+              type="button"
+              onClick={() => window.open("https://taboola.lightning.force.com/lightning/o/Case/new", "_blank")}
+              style={{
+                fontFamily: F, fontSize: 13, fontWeight: 600,
+                padding: "9px 26px", borderRadius: 8, cursor: "pointer",
+                background: "var(--imap-glass-08)",
+                color: "var(--imap-form-text)",
+                border: "1.5px solid var(--imap-border-strong)",
+                display: "flex", alignItems: "center", gap: 7,
+              }}
+            >
+              <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 11 }} />
+              Open Salesforce Manually
+            </button>
+
+            {/* Cancel */}
+            <button
+              type="button"
+              onClick={onCancel}
+              style={{
+                fontFamily: F, fontSize: 12, fontWeight: 500,
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--imap-text-muted)",
+                padding: "4px 8px",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </Panel>
+      )}
+
       {/* ── SUCCESS ── */}
       {stage === "success" && (
         <Panel>
-          {/* Animated check with SVG tick */}
           <div style={{ position: "relative", width: 80, height: 80 }}>
             <div style={{
               position: "absolute", inset: -6, borderRadius: "50%",
@@ -362,7 +560,6 @@ const ConfirmSubmitModal = ({ opened, stage, submitProgress, purpose, onCancel, 
             <Caption delay="0.18s">Your incident has been saved and notifications dispatched.</Caption>
           </div>
 
-          {/* Status chip — light: dark green on soft mint; dark: mint on tinted bg */}
           <div style={{
             background: lightUi ? "rgba(22, 163, 74, 0.14)" : "rgba(52,211,153,0.12)",
             border: lightUi

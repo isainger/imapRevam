@@ -44,8 +44,9 @@ const Bar = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmStage, setConfirmStage] = useState("confirm"); // confirm | success
   const [confirmPurpose, setConfirmPurpose] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createdCaseUrl, setCreatedCaseUrl] = useState(null);
+  const [sfCaseUrl, setSfCaseUrl] = useState(null);
+  const [sfCountdown, setSfCountdown] = useState(5);
+  const [sfError, setSfError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [payload, setPayload] = useState(null);
   const [submitProgress, setSubmitProgress] = useState(0);
@@ -59,6 +60,9 @@ const Bar = () => {
   const prevStatusRef = useRef(null);
   const statusUpdateCacheRef = useRef({});
   const pendingFlowSwitchRef = useRef(null);
+  const sfPayloadRef = useRef(null);
+  const sfTimersRef = useRef([]);
+  const sfRetryCountRef = useRef(0);
 
   const statusGradientMapNormal = {
     Suspected: {
@@ -598,6 +602,25 @@ const Bar = () => {
     return () => clearInterval(interval);
   }, [confirmStage]);
 
+  // SF case created → countdown then auto-submit
+  useEffect(() => {
+    if (confirmStage !== "sf-success") return;
+    setSfCountdown(5);
+    sfTimersRef.current.forEach((t) => clearTimeout(t));
+    sfTimersRef.current = [];
+    for (let i = 1; i <= 4; i++) {
+      sfTimersRef.current.push(
+        setTimeout(() => setSfCountdown(5 - i), i * 1000)
+      );
+    }
+    sfTimersRef.current.push(setTimeout(() => setSfCountdown(0), 4000));
+    sfTimersRef.current.push(
+      setTimeout(() => doFinalSubmit(sfPayloadRef.current), 5100)
+    );
+    return () => sfTimersRef.current.forEach((t) => clearTimeout(t));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmStage]);
+
   useEffect(() => {
     if (deptConfirmOpen) {
       setNotifyStakeholders(false);
@@ -850,7 +873,8 @@ const Bar = () => {
     form.reset();
     setOriginalIncident(null);
     setOldIncidentData(null);
-    setCreatedCaseUrl(null);
+    setSfCaseUrl(null);
+    sfPayloadRef.current = null;
 
     setFormStep(1);
     setDepartmentLocked(false); // ✅ RESET HERE
@@ -917,85 +941,17 @@ const Bar = () => {
       });
       return;
     }
-    // Auto-create Salesforce case when the checkbox is ticked (new incidents only)
-    let incidentLinkValue = form.values.inputBox.incidentLink;
+    // SF auto-create: defer case creation + payload prep to inside the modal
     if (
       form.values.inputBox.createCase &&
       incidentAction.actionType === "create" &&
       !originalIncident
     ) {
-      setIsSubmitting(true);
-      try {
-        const extractEmail = (performer) => {
-          const m = performer?.match(/\(([^)]+)\)$/);
-          return m ? m[1] : performer || "";
-        };
-        const stripHtml = (str) =>
-          str ? str.replace(/<[^>]*>/g, "").trim() : "";
-
-        const revenueDetails =
-          form.values.radio.revenueImpact === "Yes" &&
-          form.values.inputBox.revenueImpactDetails
-            ? `\n\nRevenue Impact: ${form.values.inputBox.revenueImpactDetails}`
-            : "";
-
-        const reportedByMap = {
-          "Product/RnD": "R&D",
-          "PS/Support": "PS",
-          "Customer": "Customer",
-          "Business": "Business",
-        };
-
-        const casePayload = {
-          record_type: "0123o00000224NjAAI",
-          business_area: "Publisher",
-          subject: form.values.inputBox.subject,
-          description:
-            stripHtml(form.values.textArea.incidentDetails) + revenueDetails,
-          severity: form.values.dropDown.severity || "Standard",
-          revenue_impact: "",
-          backstage_account_id: "1816487",
-          case_origin: "Taboola Web",
-          customer_email: extractEmail(form.values.inputBox.performer),
-          incident_type: "Incident Notification",
-          reported_by: reportedByMap[form.values.dropDown.reportedBy] || undefined,
-          affected_product: form.values.dropDown.affectedProduct || "",
-          started_time:
-            form.values.dateTime.startTime.utc || new Date().toISOString(),
-          support_discovered_time:
-            form.values.dateTime.discoveredTime.utc || new Date().toISOString(),
-          resolved_time: form.values.dateTime.resolvedTime?.utc || "",
-        };
-
-        const caseRes = await fetch(endpoints.SALESFORCE_CREATE_CASE_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(casePayload),
-        });
-
-        if (!caseRes.ok)
-          throw new Error(`Case creation failed (${caseRes.status})`);
-
-        const caseData = await caseRes.json();
-        if (!caseData.sf_case_url)
-          throw new Error("No case URL returned from Salesforce");
-
-        incidentLinkValue = caseData.sf_case_url;
-        form.setFieldValue("inputBox.incidentLink", incidentLinkValue);
-        setCreatedCaseUrl(caseData.sf_case_url);
-      } catch (err) {
-        setIsSubmitting(false);
-        notifications.show({
-          title: "Case Creation Failed",
-          message: `Could not create Salesforce case: ${err.message}`,
-          color: "red",
-        });
-        return;
-      } finally {
-        setIsSubmitting(false);
-      }
+      openConfirm("submit");
+      return;
     }
 
+    let incidentLinkValue = form.values.inputBox.incidentLink;
     const incidentNumber = extractIncidentNumber(incidentLinkValue);
 
     if (!incidentNumber) {
@@ -1114,48 +1070,23 @@ const Bar = () => {
     openConfirm("submit");
     return;
   };
-  const handleConfirmSubmit = async () => {
-    if (saving) return;
-
-    if (confirmPurpose === "switchFlow") {
-      setConfirmOpen(false);
-      setConfirmStage("confirm");
-      const run = pendingFlowSwitchRef.current;
-      pendingFlowSwitchRef.current = null;
-      resetToMainScreen();
-      run?.();
-      return;
-    }
-
-    // EXIT CONFIRM FLOW
-    if (confirmPurpose === "exit") {
-      setConfirmOpen(false);
-      setConfirmStage("confirm");
-      resetToMainScreen();
-      return;
-    }
-
-    // SUBMIT CONFIRM FLOW
-    if (confirmPurpose !== "submit") return;
-
-    if (!payload) return;
-
+  const doFinalSubmit = async (overridePayload) => {
+    const p = overridePayload ?? sfPayloadRef.current ?? payload;
+    if (!p || saving) return;
     try {
       setSaving(true);
       setConfirmStage("submitting");
-
-      await saveIncident(payload);
+      await saveIncident(p);
       const updated = await fetchAllIncidents();
       setAllIncidents(updated);
-
       setConfirmStage("success");
-
       setTimeout(() => {
         setConfirmOpen(false);
         setConfirmStage("confirm");
         setSaving(false);
         setPayload(null);
-
+        sfPayloadRef.current = null;
+        setSfCaseUrl(null);
         resetToMainScreen();
       }, 1600);
     } catch (error) {
@@ -1169,6 +1100,196 @@ const Bar = () => {
       setConfirmStage("confirm");
     }
   };
+
+  const handleConfirmSubmit = async () => {
+    if (saving) return;
+
+    if (confirmPurpose === "switchFlow") {
+      setConfirmOpen(false);
+      setConfirmStage("confirm");
+      const run = pendingFlowSwitchRef.current;
+      pendingFlowSwitchRef.current = null;
+      resetToMainScreen();
+      run?.();
+      return;
+    }
+
+    if (confirmPurpose === "exit") {
+      setConfirmOpen(false);
+      setConfirmStage("confirm");
+      resetToMainScreen();
+      return;
+    }
+
+    if (confirmPurpose !== "submit") return;
+
+    // ── SF case creation path (only triggered from "confirm" stage) ──
+    const needsSfCase =
+      form.values.inputBox.createCase &&
+      incidentAction.actionType === "create" &&
+      !originalIncident;
+
+    if (needsSfCase && (confirmStage === "confirm" || confirmStage === "sf-error")) {
+      setConfirmStage("sf-creating");
+      setSfError(null);
+      setSfCaseUrl(null);
+
+      try {
+        const extractEmail = (performer) => {
+          const m = performer?.match(/\(([^)]+)\)$/);
+          return m ? m[1] : performer || "";
+        };
+        const stripHtml = (str) =>
+          str ? str.replace(/<[^>]*>/g, "").trim() : "";
+        const revenueDetails =
+          form.values.radio.revenueImpact === "Yes" &&
+          form.values.inputBox.revenueImpactDetails
+            ? `\n\nRevenue Impact: ${form.values.inputBox.revenueImpactDetails}`
+            : "";
+        const reportedByMap = {
+          "Product/RnD": "R&D",
+          "PS/Support": "PS",
+          Customer: "Customer",
+          Business: "Business",
+        };
+
+        const caseRes = await fetch(endpoints.SALESFORCE_CREATE_CASE_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            record_type: "0123o00000224NjAAI",
+            business_area: "Publisher",
+            subject: form.values.inputBox.subject,
+            description:
+              stripHtml(form.values.textArea.incidentDetails) + revenueDetails,
+            severity: form.values.dropDown.severity || "Standard",
+            revenue_impact: "",
+            backstage_account_id: "1816487",
+            case_origin: "Taboola Web",
+            customer_email: extractEmail(form.values.inputBox.performer),
+            incident_type: "Incident Notification",
+            reported_by:
+              reportedByMap[form.values.dropDown.reportedBy] || undefined,
+            affected_product: form.values.dropDown.affectedProduct || "",
+            started_time:
+              form.values.dateTime.startTime.utc || new Date().toISOString(),
+            support_discovered_time:
+              form.values.dateTime.discoveredTime.utc ||
+              new Date().toISOString(),
+            resolved_time: form.values.dateTime.resolvedTime?.utc || "",
+          }),
+        });
+
+        if (!caseRes.ok)
+          throw new Error(`Case creation failed (${caseRes.status})`);
+        const caseData = await caseRes.json();
+        if (!caseData.sf_case_url)
+          throw new Error("No case URL returned from Salesforce");
+
+        const url = caseData.sf_case_url;
+        const incidentNumber = extractIncidentNumber(url);
+        form.setFieldValue("inputBox.incidentLink", url);
+
+        // Build full incident payload now that we have the SF URL
+        const isResolved = ["Resolved", "Resolved with RCA"].includes(
+          form.values.radio.status
+        );
+        const isRCA = form.values.radio.status === "Resolved with RCA";
+        const preparedPayload = {
+          incident_number: incidentNumber,
+          known_issue: form.values.radio.known_issue,
+          incident_subject: form.values.inputBox.subject,
+          incident_link: url,
+          performer: form.values.inputBox.performer,
+          departmentName: form.values.departmentName,
+          incident_status: form.values.radio.status,
+          remaining_status:
+            form.values.radio.status === "Not an Issue"
+              ? JSON.stringify([])
+              : JSON.stringify(form.values.radio.remainingStatus),
+          incident_type: form.values.radio.incidentType,
+          revenue_impact: form.values.radio.revenueImpact,
+          next_update: form.values.radio.nextUpdate,
+          workaround: form.values.radio.workaround,
+          reported_by: form.values.dropDown.reportedBy,
+          severity: form.values.dropDown.severity,
+          affected_product: form.values.dropDown.affectedProduct,
+          region_impacted: form.values.dropDown.regionImpacted,
+          service_impacted: form.values.dropDown.serviceImpacted,
+          notification_mails: form.values.dropDown.notificationMails,
+          start_time: form.values.dateTime.startTime.utc,
+          discovered_time: form.values.dateTime.discoveredTime.utc,
+          incident_details: form.values.textArea.incidentDetails,
+          status_update_details:
+            form.values.statusUpdate === true &&
+            form.values.textArea.statusUpdateDetails?.trim()
+              ? form.values.textArea.statusUpdateDetails
+              : null,
+          resolved_details: isResolved
+            ? form.values.textArea.resolvedDetails
+            : null,
+          resolved_time: isResolved
+            ? form.values.dateTime.resolvedTime.utc
+            : null,
+          resolved_with_rca_details: isRCA
+            ? form.values.textArea.resolvedwithRcaDetails
+            : null,
+          resolved_with_rca_time: isRCA
+            ? form.values.dateTime.resolvedWithRcaTime.utc
+            : null,
+          workaround_details:
+            form.values.radio.workaround === "Yes" &&
+            form.values.textArea.workaroundDetails?.trim()
+              ? form.values.textArea.workaroundDetails
+              : null,
+          next_update_time:
+            form.values.radio.nextUpdate === "Yes"
+              ? form.values.dateTime.nextUpdateTime.utc
+              : null,
+          revenue_impact_details:
+            form.values.radio.revenueImpact === "Yes"
+              ? form.values.inputBox.revenueImpactDetails
+              : null,
+        };
+
+        sfRetryCountRef.current = 0;
+        sfPayloadRef.current = preparedPayload;
+        setPayload(preparedPayload);
+        setSfCaseUrl(url);
+        setConfirmStage("sf-success");
+      } catch (err) {
+        sfRetryCountRef.current += 1;
+        if (sfRetryCountRef.current >= 2) {
+          // Two failures — fall back to manual input
+          sfRetryCountRef.current = 0;
+          form.setFieldValue("inputBox.createCase", false);
+          setConfirmOpen(false);
+          setConfirmStage("confirm");
+          setSfError(null);
+          setSfCaseUrl(null);
+          notifications.show({
+            title: "Auto-create failed twice",
+            message: "Please enter the Salesforce case link manually.",
+            color: "orange",
+          });
+        } else {
+          setSfError(err.message);
+          setConfirmStage("sf-error");
+        }
+      }
+      return;
+    }
+
+    // ── Standard submit (no SF case needed) ──
+    await doFinalSubmit();
+  };
+
+  const handleSfSubmitNow = () => {
+    sfTimersRef.current.forEach((t) => clearTimeout(t));
+    sfTimersRef.current = [];
+    doFinalSubmit(sfPayloadRef.current);
+  };
+
 
   const searchIncident = async (e) => {
     e.preventDefault();
@@ -2507,77 +2628,13 @@ const Bar = () => {
                           <i className="fa-solid fa-envelope-open-text" />
                           Preview Email
                         </button>
-                        {isSubmitting && (
-                          <div style={{
-                            display: "flex", alignItems: "center", gap: "10px",
-                            padding: "10px 14px", marginBottom: "8px",
-                            borderRadius: "8px",
-                            background: "var(--imap-form-brand-dim)",
-                            border: "1px solid var(--imap-form-brand)",
-                          }}>
-                            <i className="fa-solid fa-spinner fa-spin" style={{ color: "var(--imap-form-brand)", fontSize: "13px" }} />
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--imap-form-brand)", marginBottom: "5px" }}>
-                                Creating Salesforce Case...
-                              </div>
-                              <div style={{ height: "4px", borderRadius: "2px", background: "var(--imap-form-brand-dim)", overflow: "hidden" }}>
-                                <div style={{
-                                  height: "100%", borderRadius: "2px", background: "var(--imap-form-brand)",
-                                  animation: "sf-progress-slide 1.2s ease-in-out infinite",
-                                }} />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        {createdCaseUrl && !isSubmitting && (
-                          <div style={{
-                            display: "flex", alignItems: "center", gap: "10px",
-                            padding: "10px 14px", marginBottom: "8px",
-                            borderRadius: "8px",
-                            background: "rgba(5,150,105,0.1)",
-                            border: "1px solid rgba(5,150,105,0.4)",
-                          }}>
-                            <i className="fa-solid fa-circle-check" style={{ color: "#10b981", fontSize: "14px", flexShrink: 0 }} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: "12px", fontWeight: 600, color: "#10b981", marginBottom: "3px" }}>
-                                Salesforce Case Created
-                              </div>
-                              <a
-                                href={createdCaseUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ fontSize: "11px", color: "var(--imap-form-brand)", wordBreak: "break-all", textDecoration: "none" }}
-                              >
-                                {createdCaseUrl.match(/\/Case\/([^/]+)\//)?.[1] ?? createdCaseUrl}
-                              </a>
-                            </div>
-                            <button
-                              type="button"
-                              title="Copy link"
-                              onClick={() => navigator.clipboard.writeText(createdCaseUrl)}
-                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--imap-form-brand)", padding: "4px", flexShrink: 0 }}
-                            >
-                              <i className="fa-regular fa-copy" style={{ fontSize: "13px" }} />
-                            </button>
-                            <button
-                              type="button"
-                              title="Dismiss"
-                              onClick={() => setCreatedCaseUrl(null)}
-                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--imap-form-muted)", padding: "4px", flexShrink: 0 }}
-                            >
-                              <i className="fa-solid fa-xmark" style={{ fontSize: "13px" }} />
-                            </button>
-                          </div>
-                        )}
                         <button
                           type="button"
                           className="f-btn-submit"
                           onClick={handleSubmit}
-                          disabled={isSubmitting}
-                          style={isSubmitting ? { opacity: 0.6, cursor: "not-allowed" } : {}}
                         >
-                          <i className={isSubmitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-paper-plane"} />
-                          {isSubmitting ? "Creating Case..." : "Submit"}
+                          <i className="fa-solid fa-paper-plane" />
+                          Submit
                         </button>
                       </div>
                     </div>
@@ -2635,12 +2692,25 @@ const Bar = () => {
                   loading={saving}
                   submitProgress={submitProgress}
                   purpose={confirmPurpose}
+                  sfCaseMode={
+                    form.values.inputBox.createCase &&
+                    incidentAction.actionType === "create" &&
+                    !originalIncident
+                  }
+                  sfCaseUrl={sfCaseUrl}
+                  sfCountdown={sfCountdown}
+                  sfError={sfError}
+                  onSfSubmitNow={handleSfSubmitNow}
                   onCancel={() => {
                     if (confirmPurpose === "switchFlow") {
                       pendingFlowSwitchRef.current = null;
                     }
+                    sfTimersRef.current.forEach((t) => clearTimeout(t));
+                    sfTimersRef.current = [];
+                    sfRetryCountRef.current = 0;
                     setConfirmOpen(false);
                     setConfirmStage("confirm");
+                    setSfError(null);
                   }}
                   onConfirm={handleConfirmSubmit}
                 />
