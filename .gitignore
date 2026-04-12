@@ -15,3 +15,6 @@ dist/
 
 # Local AI / editor tooling
 .claude/
+
+# Backend: optional local DB pool (cert / ssl); prod uses database/db.js defaults
+imapRevamBE/database/db.local.js
