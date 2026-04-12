@@ -718,6 +718,58 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
 //   }
 // });
 
+// ---------------- SALESFORCE / WORKATO ----------------
+app.post("/api/v1/salesforce/create-case", async (req, res) => {
+  const token = process.env.WORKATO_API_TOKEN;
+  if (!token) {
+    return res
+      .status(503)
+      .json({ error: "WORKATO_API_TOKEN is not configured on the server" });
+  }
+
+  try {
+    const upstream = await fetch(
+      "https://apim.workato.com/taboola/salesforce-v1/upsert_case",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "API-TOKEN": token,
+        },
+        body: JSON.stringify(req.body),
+      }
+    );
+
+    const text = await upstream.text();
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch {
+      result = { raw: text };
+    }
+
+    if (!upstream.ok) {
+      console.error("❌ Workato error:", upstream.status, result);
+      return res
+        .status(upstream.status)
+        .json({ error: "Workato request failed", details: result });
+    }
+
+    // Workato returns { status: "Created", sf_case_id: "..." }
+    const sf_case_id = result.sf_case_id || result.id || result.Id || result.case_id;
+    const sf_case_url = sf_case_id
+      ? `https://taboola.lightning.force.com/lightning/r/Case/${sf_case_id}/view`
+      : null;
+
+    res.json({ ...result, sf_case_id, sf_case_url });
+  } catch (err) {
+    console.error("❌ Salesforce case creation error:", err);
+    res
+      .status(500)
+      .json({ error: "Failed to create Salesforce case", details: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
