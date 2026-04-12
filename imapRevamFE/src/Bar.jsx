@@ -11,7 +11,7 @@ import MultiSelectEmails from "./components/MultiSelectEmails";
 import InputBtn from "./components/InputBtn";
 import DateTimeSelector from "./components/DateTimeSelector";
 import EmailTemplateLayout from "./utils/EmailTemplateLayout";
-import { Box, Textarea, Modal, useComputedColorScheme } from "@mantine/core";
+import { Box, Checkbox, Textarea, Modal, useComputedColorScheme } from "@mantine/core";
 import SearchableInput from "./components/SearchableInput";
 import { notifications } from "@mantine/notifications";
 import {
@@ -20,6 +20,7 @@ import {
   saveIncident,
   sendDepartmentChangeEmail,
 } from "./services/incidentOperations";
+import { endpoints } from "./services/api";
 import DepartmentCard from "./components/DepartmentCard";
 import IncidentData from "./components/IncidentData";
 import ConfirmSubmitModal from "./components/ConfirmSubmitModal";
@@ -247,6 +248,7 @@ const Bar = () => {
       incidentLink: "",
       performer: "",
       revenueImpactDetails: "",
+      createCase: false,
     },
     radio: {
       known_issue: "",
@@ -367,10 +369,12 @@ const Bar = () => {
           value.trim().length < 5
             ? "Subject must be at least 5 characters"
             : null,
-        incidentLink: (value) =>
-          !/^https:\/\/taboola\.lightning\.force\.com\/lightning\/r\/Case\/[A-Za-z0-9]+\/view$/.test(
-            value
-          )
+        incidentLink: (value, values) =>
+          values.inputBox?.createCase
+            ? null
+            : !/^https:\/\/taboola\.lightning\.force\.com\/lightning\/r\/Case\/[A-Za-z0-9]+\/view$/.test(
+                value
+              )
             ? "Please enter a valid Taboola Case link"
             : null,
         performer: (value) =>
@@ -464,8 +468,18 @@ const Bar = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const data = await fetchAllIncidents();
-      setAllIncidents(data);
+      try {
+        const data = await fetchAllIncidents();
+        setAllIncidents(Array.isArray(data) ? data : []);
+      } catch {
+        setAllIncidents([]);
+        notifications.show({
+          title: "Could not load incidents",
+          message:
+            "The API returned an error or the database is unreachable. Check the backend terminal logs.",
+          color: "red",
+        });
+      }
     };
     fetchData();
   }, []);
@@ -899,9 +913,81 @@ const Bar = () => {
       });
       return;
     }
-    const incidentNumber = extractIncidentNumber(
-      form.values.inputBox.incidentLink
-    );
+    // Auto-create Salesforce case when the checkbox is ticked (new incidents only)
+    let incidentLinkValue = form.values.inputBox.incidentLink;
+    if (
+      form.values.inputBox.createCase &&
+      incidentAction.actionType === "create" &&
+      !originalIncident
+    ) {
+      try {
+        const extractEmail = (performer) => {
+          const m = performer?.match(/\(([^)]+)\)$/);
+          return m ? m[1] : performer || "";
+        };
+        const stripHtml = (str) =>
+          str ? str.replace(/<[^>]*>/g, "").trim() : "";
+
+        const revenueDetails =
+          form.values.radio.revenueImpact === "Yes" &&
+          form.values.inputBox.revenueImpactDetails
+            ? `\n\nRevenue Impact: ${form.values.inputBox.revenueImpactDetails}`
+            : "";
+
+        const reportedByMap = {
+          "Product/RnD": "R&D",
+          "PS/Support": "PS",
+          "Customer": "Customer",
+          "Business": "Business",
+        };
+
+        const casePayload = {
+          record_type: "0123o00000224NjAAI",
+          business_area: "Publisher",
+          subject: form.values.inputBox.subject,
+          description:
+            stripHtml(form.values.textArea.incidentDetails) + revenueDetails,
+          severity: form.values.dropDown.severity || "Standard",
+          revenue_impact: "",
+          backstage_account_id: "1816487",
+          case_origin: "Taboola Web",
+          customer_email: extractEmail(form.values.inputBox.performer),
+          incident_type: "Incident Notification",
+          reported_by: reportedByMap[form.values.dropDown.reportedBy] || undefined,
+          affected_product: form.values.dropDown.affectedProduct || "",
+          started_time:
+            form.values.dateTime.startTime.utc || new Date().toISOString(),
+          support_discovered_time:
+            form.values.dateTime.discoveredTime.utc || new Date().toISOString(),
+          resolved_time: form.values.dateTime.resolvedTime?.utc || "",
+        };
+
+        const caseRes = await fetch(endpoints.SALESFORCE_CREATE_CASE_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(casePayload),
+        });
+
+        if (!caseRes.ok)
+          throw new Error(`Case creation failed (${caseRes.status})`);
+
+        const caseData = await caseRes.json();
+        if (!caseData.sf_case_url)
+          throw new Error("No case URL returned from Salesforce");
+
+        incidentLinkValue = caseData.sf_case_url;
+        form.setFieldValue("inputBox.incidentLink", incidentLinkValue);
+      } catch (err) {
+        notifications.show({
+          title: "Case Creation Failed",
+          message: `Could not create Salesforce case: ${err.message}`,
+          color: "red",
+        });
+        return;
+      }
+    }
+
+    const incidentNumber = extractIncidentNumber(incidentLinkValue);
 
     if (!incidentNumber) {
       notifications.show({
@@ -939,7 +1025,7 @@ const Bar = () => {
       incident_number: incidentNumber,
       known_issue: form.values.radio.known_issue,
       incident_subject: form.values.inputBox.subject,
-      incident_link: form.values.inputBox.incidentLink,
+      incident_link: incidentLinkValue,
       performer: form.values.inputBox.performer,
       departmentName: form.values.departmentName,
       incident_status: form.values.radio.status,
@@ -2327,23 +2413,38 @@ const Bar = () => {
                         </span>
                         <div className="f-section-line" />
                       </div>
-                      <InputBtn
-                        horizontalLayout={false}
-                        title="Incident Link: "
-                        width="100%"
-                        placeholder="Enter Incident Link"
-                        isBtn={false}
-                        inputProps={{
-                          ...form.getInputProps("inputBox.incidentLink"), // keeps value, error, onBlur, etc.
-                          disabled: !!originalIncident, // ✅ LOCK after fetch
-                          readOnly: !!originalIncident, // extra safety
-                          onChange: (e) =>
-                            handleChange(
-                              "inputBox.incidentLink",
-                              e.target.value
-                            ), // replace default onChange
-                        }}
-                      />
+                      {incidentAction.actionType === "create" && !originalIncident && (
+                        <Checkbox
+                          label="Auto-create Salesforce Case"
+                          checked={form.values.inputBox.createCase}
+                          onChange={(e) =>
+                            form.setFieldValue(
+                              "inputBox.createCase",
+                              e.currentTarget.checked
+                            )
+                          }
+                          mb={4}
+                        />
+                      )}
+                      {!form.values.inputBox.createCase && (
+                        <InputBtn
+                          horizontalLayout={false}
+                          title="Incident Link: "
+                          width="100%"
+                          placeholder="Enter Incident Link"
+                          isBtn={false}
+                          inputProps={{
+                            ...form.getInputProps("inputBox.incidentLink"),
+                            disabled: !!originalIncident,
+                            readOnly: !!originalIncident,
+                            onChange: (e) =>
+                              handleChange(
+                                "inputBox.incidentLink",
+                                e.target.value
+                              ),
+                          }}
+                        />
+                      )}
                       <SearchableInput
                         title="Performer: "
                         width="100%"

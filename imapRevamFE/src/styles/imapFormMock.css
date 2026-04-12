@@ -1,6 +1,6 @@
 /* Incident form chrome — aligned with design-mockup-form-v2.html (form overlay + steps) */
 .imap-form-app {
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -309,7 +309,7 @@
   border: 1.5px solid var(--imap-elev-14);
   background: var(--imap-field-fill);
   color: var(--imap-form-secondary);
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
 }
 .imap-f-pill:hover {
   border-color: rgba(255, 255, 255, 0.22);
@@ -331,7 +331,7 @@
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   background: var(--imap-form-brand);
   border: 1px solid var(--imap-elev-10);
   color: #fff;
@@ -365,7 +365,7 @@
   padding: 11px 14px;
   border-radius: 9px;
   font-size: 14px;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   background: var(--imap-field-fill);
   border: 1px solid var(--imap-elev-14);
   color: var(--imap-form-text);
@@ -396,7 +396,7 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   white-space: nowrap;
   background: var(--imap-fetch-btn-bg);
   border: 1px solid var(--imap-fetch-btn-border);
@@ -436,7 +436,7 @@
   color: #fff;
   border: 1px solid rgba(45, 212, 191, 0.22);
   cursor: pointer;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   box-shadow: 0 10px 32px rgba(0, 102, 255, 0.35);
   transition:
     transform 0.15s ease,
@@ -996,7 +996,7 @@
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   background: var(--imap-form-brand);
   border: 1px solid var(--imap-elev-10);
   color: #fff;
@@ -1030,7 +1030,7 @@
   padding: 11px 14px;
   border-radius: 9px;
   font-size: 14px;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   background: var(--imap-field-fill);
   border: 1px solid var(--imap-elev-06);
   color: var(--imap-form-text);
@@ -1064,7 +1064,7 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   white-space: nowrap;
   background: var(--imap-fetch-btn-bg);
   border: 1px solid var(--imap-fetch-btn-border);
@@ -1160,7 +1160,7 @@
   color: #fff;
   border: 1px solid rgba(45, 212, 191, 0.22);
   cursor: pointer;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   box-shadow: 0 10px 32px rgba(0, 102, 255, 0.35);
   transition:
     transform 0.15s ease,
@@ -1187,7 +1187,7 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   background: rgba(167, 139, 250, 0.1);
   border: 1px solid rgba(167, 139, 250, 0.28);
   color: #a78bfa;
@@ -1217,7 +1217,7 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
   background: var(--imap-form-brand);
   border: 1px solid var(--imap-elev-10);
   color: #fff;
