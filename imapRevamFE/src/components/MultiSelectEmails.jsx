@@ -30,10 +30,36 @@ const MultiSelectEmails = (props) => {
           offset: 0,
         }}
         styles={{
+          dropdown: {
+            backgroundColor: "var(--imap-dropdown-bg)",
+            border: "1px solid var(--imap-dropdown-border)",
+            borderRadius: 10,
+          },
+          option: {
+            color: "var(--imap-dropdown-option)",
+          },
           input: {
             borderRadius: "10px",
             fontSize: "13px",
             fontFamily: "'Poppins', sans-serif",
+            minHeight: 52,
+            padding: "8px 10px",
+            alignItems: "center",
+          },
+          pillsList: {
+            gap: 8,
+            rowGap: 8,
+            alignItems: "center",
+          },
+          pill: {
+            fontSize: "13px",
+            lineHeight: 1.35,
+            minHeight: 32,
+            paddingInline: 12,
+          },
+          inputField: {
+            fontSize: "13px",
+            minHeight: 30,
           },
         }}
       />

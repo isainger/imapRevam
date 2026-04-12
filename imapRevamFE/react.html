@@ -1,20 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <script>
-      try {
-        var k = "mantine-color-scheme-value";
-        var _colorScheme = localStorage.getItem(k);
-        var colorScheme =
-          _colorScheme === "light" || _colorScheme === "dark"
-            ? _colorScheme
-            : "dark";
-        document.documentElement.setAttribute(
-          "data-mantine-color-scheme",
-          colorScheme
-        );
-      } catch (e) {}
-    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./src/assets/rightlogo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -24,15 +10,11 @@
       rel="stylesheet"
     />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Incident Management</title>
+    <title>Incident Management (React)</title>
   </head>
   <body>
     <div id="root"></div>

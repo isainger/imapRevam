@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { endpoints } from "../services/api";
 import logo from "../assets/logo.png";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 const RecipientList = () => {
   const { incidentId } = useParams();
@@ -31,7 +32,7 @@ const RecipientList = () => {
         <div style={styles.card}>
           <div style={styles.loadingDot}>
             <div style={styles.spinner} />
-            <p style={{ color: "#64748b", fontFamily: "'Poppins', sans-serif", marginTop: "16px" }}>
+            <p style={{ color: "var(--imap-text-muted)", fontFamily: "'Poppins', sans-serif", marginTop: "16px" }}>
               Loading recipients...
             </p>
           </div>
@@ -47,7 +48,7 @@ const RecipientList = () => {
           <div style={{ textAlign: "center", padding: "40px 20px" }}>
             <div style={{ fontSize: "48px", marginBottom: "16px" }}>!</div>
             <h2 style={{ ...styles.title, color: "#ef4444" }}>Not Found</h2>
-            <p style={{ color: "#64748b", fontFamily: "'Poppins', sans-serif" }}>{error}</p>
+            <p style={{ color: "var(--imap-text-muted)", fontFamily: "'Poppins', sans-serif" }}>{error}</p>
           </div>
         </div>
       </div>
@@ -62,6 +63,8 @@ const RecipientList = () => {
           <img src={logo} alt="Taboola" style={{ height: "24px" }} />
           <div style={styles.headerDivider} />
           <span style={styles.headerLabel}>INCIDENT MANAGEMENT</span>
+          <div style={{ flex: 1 }} />
+          <ThemeToggle />
         </div>
 
         {/* Incident Info Bar */}
@@ -78,7 +81,7 @@ const RecipientList = () => {
         {/* Recipients Section */}
         <div style={styles.section}>
           <div style={styles.sectionHeader}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0056f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--imap-brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -91,7 +94,7 @@ const RecipientList = () => {
 
           <div style={styles.recipientGrid}>
             {data.recipients.length === 0 ? (
-              <p style={{ color: "#94a3b8", fontFamily: "'Poppins', sans-serif", textAlign: "center", padding: "24px" }}>
+              <p style={{ color: "var(--imap-text-muted)", fontFamily: "'Poppins', sans-serif", textAlign: "center", padding: "24px" }}>
                 No recipients found for this incident.
               </p>
             ) : (
@@ -134,7 +137,7 @@ const styles = {
   backdrop: {
     minHeight: "100vh",
     width: "100%",
-    background: "linear-gradient(135deg, #f0f4ff 0%, #e8ecf4 50%, #f0f4ff 100%)",
+    background: "var(--imap-recipient-backdrop)",
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "center",
@@ -145,9 +148,10 @@ const styles = {
   card: {
     width: "100%",
     maxWidth: "560px",
-    background: "#fff",
+    background: "var(--imap-recipient-card)",
     borderRadius: "16px",
-    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
+    boxShadow:
+      "0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--imap-recipient-card-border)",
     overflow: "visible",
     marginBottom: "40px",
   },
@@ -156,19 +160,20 @@ const styles = {
     alignItems: "center",
     gap: "12px",
     padding: "18px 24px",
-    background: "#0f172a",
+    background: "var(--imap-header-bg)",
+    borderBottom: "1px solid var(--imap-header-border)",
     borderRadius: "16px 16px 0 0",
   },
   headerDivider: {
     width: "1px",
     height: "20px",
-    background: "rgba(255, 255, 255, 0.25)",
+    background: "var(--imap-chrome-divider)",
   },
   headerLabel: {
     fontSize: "11px",
     fontWeight: 700,
     letterSpacing: "1.5px",
-    color: "#60a5fa",
+    color: "var(--imap-brand)",
     fontFamily: "'Poppins', sans-serif",
   },
   infoBar: {
@@ -176,12 +181,12 @@ const styles = {
     alignItems: "center",
     gap: "14px",
     padding: "20px 24px",
-    background: "#f8fafc",
-    borderBottom: "1px solid #f1f5f9",
+    background: "var(--imap-recipient-info-bg)",
+    borderBottom: "1px solid var(--imap-recipient-info-border)",
   },
   incidentBadge: {
     padding: "6px 12px",
-    background: "#0056f0",
+    background: "var(--imap-brand)",
     color: "#fff",
     borderRadius: "8px",
     fontSize: "12px",
@@ -194,7 +199,7 @@ const styles = {
     margin: 0,
     fontSize: "14px",
     fontWeight: 600,
-    color: "#1e293b",
+    color: "var(--imap-text-bright)",
     fontFamily: "'Poppins', sans-serif",
     lineHeight: 1.4,
   },
@@ -226,12 +231,12 @@ const styles = {
   sectionTitle: {
     fontSize: "13px",
     fontWeight: 700,
-    color: "#334155",
+    color: "var(--imap-recipient-section-title)",
     letterSpacing: "0.3px",
     fontFamily: "'Poppins', sans-serif",
   },
   recipientGrid: {
-    border: "1.5px solid #e2e8f0",
+    border: "1.5px solid var(--imap-recipient-grid-border)",
     borderRadius: "12px",
     maxHeight: "480px",
     overflowY: "auto",
@@ -241,13 +246,13 @@ const styles = {
     alignItems: "center",
     gap: "12px",
     padding: "12px 16px",
-    borderBottom: "1px solid #f1f5f9",
+    borderBottom: "1px solid var(--imap-recipient-row-border)",
   },
   avatar: {
     width: "32px",
     height: "32px",
     borderRadius: "50%",
-    background: "linear-gradient(135deg, #0056f0, #3b82f6)",
+    background: "linear-gradient(135deg, var(--imap-brand), #3b82f6)",
     color: "#fff",
     display: "flex",
     alignItems: "center",
@@ -259,7 +264,7 @@ const styles = {
   },
   email: {
     fontSize: "13px",
-    color: "#334155",
+    color: "var(--imap-recipient-email)",
     fontFamily: "'Poppins', sans-serif",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -268,9 +273,9 @@ const styles = {
   footer: {
     padding: "16px 24px",
     textAlign: "center",
-    borderTop: "1px solid #f1f5f9",
+    borderTop: "1px solid var(--imap-recipient-footer-border)",
     fontSize: "11px",
-    color: "#94a3b8",
+    color: "var(--imap-recipient-footer-text)",
     fontFamily: "'Poppins', sans-serif",
   },
   loadingDot: {
@@ -283,8 +288,8 @@ const styles = {
   spinner: {
     width: "32px",
     height: "32px",
-    border: "3px solid #e2e8f0",
-    borderTopColor: "#0056f0",
+    border: "3px solid var(--imap-recipient-spinner-track)",
+    borderTopColor: "var(--imap-brand)",
     borderRadius: "50%",
     animation: "spin 0.8s linear infinite",
   },

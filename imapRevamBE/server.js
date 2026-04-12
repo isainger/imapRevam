@@ -7,17 +7,20 @@ const { render } = require("@react-email/render");
 const React = require("react");
 const EmailTemplate = require("./mailer/emailTemplate"); // import your template
 // const getRemainingStatus = require("./utils/getRemainingStatus");
-const { improveHtmlWithAI } = require("./services/aiService");
+const {
+  improveHtmlWithAI,
+  generateDashboardInsights,
+} = require("./services/aiService");
 const router = express.Router();
 // const generateHeaderPng = require("./utils/generateHeaderSvg");
 
 const app = express();
 
 const corsOptions = {
-  origin: '*',
+  origin: "*",
   credentials: true,
-  optionSuccessStatus: 200
-}
+  optionSuccessStatus: 200,
+};
 
 app.use(express.json());
 app.use(cors(corsOptions));
@@ -27,7 +30,6 @@ app.use("/api/v1/ai", router);
 // (async () => {
 //   await initDB();
 // })();
-
 
 // ------- API---------------
 app.post("/api/v1/incidents", async (req, res) => {
@@ -41,7 +43,7 @@ app.post("/api/v1/incidents", async (req, res) => {
     // 1. Fetch latest incident row (LOCKED)
     const [rows] = await pool.query(
       "SELECT * FROM incidents WHERE incident_number = ? ORDER BY id DESC LIMIT 1 FOR UPDATE",
-      [newData.incident_number]
+      [newData.incident_number],
     );
 
     const lastRow = rows.length ? rows[0] : null;
@@ -49,13 +51,13 @@ app.post("/api/v1/incidents", async (req, res) => {
     // 2. Fetch history inside transaction
     const [historyRows] = await pool.query(
       "SELECT * FROM incidents WHERE incident_number = ? ORDER BY id DESC",
-      [newData.incident_number]
+      [newData.incident_number],
     );
 
     // 3. Resolve display_id safely
     const [existingDisplay] = await pool.query(
       "SELECT display_id FROM incidents WHERE incident_number = ? LIMIT 1 FOR UPDATE",
-      [newData.incident_number]
+      [newData.incident_number],
     );
 
     let displayId;
@@ -64,7 +66,7 @@ app.post("/api/v1/incidents", async (req, res) => {
       displayId = existingDisplay[0].display_id;
     } else {
       const [[row]] = await pool.query(
-        "SELECT MAX(display_id) AS maxId FROM incidents FOR UPDATE"
+        "SELECT MAX(display_id) AS maxId FROM incidents FOR UPDATE",
       );
       displayId = (row.maxId || 0) + 1;
     }
@@ -165,13 +167,13 @@ app.post("/api/v1/incidents", async (req, res) => {
         newData.resolved_with_rca_details,
         created_at,
         updated_at,
-      ]
+      ],
     );
 
     await pool.query("COMMIT");
 
     const displayLabel = `INC-${String(displayId).padStart(4, "0")}`;
-    const STATIC_TO = "1st-lvl-shiftleads@taboola.com";
+    // const STATIC_TO = "1st-lvl-shiftleads@taboola.com";
 
     const safeRemaining =
       typeof newData.remaining_status === "string"
@@ -187,12 +189,12 @@ app.post("/api/v1/incidents", async (req, res) => {
           remainingStatus: safeRemaining,
           showStatus: newData.incident_status,
         },
-      })
+      }),
     );
     // Inject color-scheme meta tags for dark mode — tells Gmail/Apple Mail to stay in light mode
     html = html.replace(
       "</head>",
-      '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>'
+      '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>',
     );
     // ,"parassingh964@gmail.com"
 
@@ -208,13 +210,13 @@ app.post("/api/v1/incidents", async (req, res) => {
         `UPDATE incidents
      SET email_thread_id = ?
      WHERE incident_number = ?`,
-        [emailThreadId, newData.incident_number]
+        [emailThreadId, newData.incident_number],
       );
       // const revenueTag = newData.revenue_impact ? "[Revenue Impacted] " : "";
 
       // 🔹 Send FIRST email
       await sendIncidentEmail({
-        to: STATIC_TO,
+        // to: STATIC_TO,
         // bcc: newData.notification_mails || []
         bcc: "taboolaimaptest@gmail.com",
         subject: `[Incident ${displayLabel}]: ${newData.incident_subject}`,
@@ -229,7 +231,7 @@ app.post("/api/v1/incidents", async (req, res) => {
       // const revenueTag = newData.revenue_impact ? "[Revenue Impacted] " : "";
 
       await sendIncidentEmail({
-        to: STATIC_TO,
+        // to: STATIC_TO,
         // bcc: newData.notification_mails || [],
         bcc: "taboolaimaptest@gmail.com",
         subject: `Re: [Incident ${displayLabel}]: ${newData.incident_subject}`,
@@ -262,12 +264,12 @@ app.get("/api/v1/incidents/:incident_number/recipients", async (req, res) => {
       const displayId = parseInt(incident_number.replace(/INC-/i, ""), 10);
       [rows] = await pool.query(
         "SELECT notification_mails, incident_subject, incident_status, display_id FROM incidents WHERE display_id = ? ORDER BY id DESC LIMIT 1",
-        [displayId]
+        [displayId],
       );
     } else {
       [rows] = await pool.query(
         "SELECT notification_mails, incident_subject, incident_status, display_id FROM incidents WHERE incident_number = ? ORDER BY id DESC LIMIT 1",
-        [incident_number]
+        [incident_number],
       );
     }
 
@@ -332,12 +334,12 @@ app.get("/api/v1/incidents/:incident_number", async (req, res) => {
     if (searchByIncident) {
       [rows] = await pool.query(
         "SELECT * FROM incidents WHERE incident_number = ? ORDER BY id DESC",
-        [searchByIncident]
+        [searchByIncident],
       );
     } else if (searchByDisplay !== null) {
       [rows] = await pool.query(
         "SELECT * FROM incidents WHERE display_id = ? ORDER BY id DESC",
-        [searchByDisplay]
+        [searchByDisplay],
       );
     }
 
@@ -380,8 +382,29 @@ router.post("/improve", async (req, res) => {
   }
 });
 
+router.post("/dashboard-insights", async (req, res) => {
+  try {
+    const { snapshot } = req.body;
+    if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+      return res.status(400).json({ error: "snapshot object required" });
+    }
+    const insights = await generateDashboardInsights(snapshot);
+    res.json({ insights });
+  } catch (err) {
+    if (err.code === "AI_NOT_CONFIGURED") {
+      return res.status(503).json({
+        error: "AI not configured",
+        code: "AI_NOT_CONFIGURED",
+        insights: null,
+      });
+    }
+    console.error("❌ AI dashboard-insights error:", err);
+    res.status(500).json({ error: "AI processing failed", insights: null });
+  }
+});
+
 app.post("/api/v1/incidents/department-change-email", async (req, res) => {
-  const STATIC_TO = "1st-lvl-shiftleads@taboola.com";
+  // const STATIC_TO = "1st-lvl-shiftleads@taboola.com";
   try {
     const { incidentNumber, fromDepartment, toDepartment, messageHtml } =
       req.body;
@@ -397,7 +420,7 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
        WHERE incident_number = ?
        ORDER BY id DESC
        LIMIT 1`,
-      [incidentNumber]
+      [incidentNumber],
     );
 
     if (!rows.length) {
@@ -428,14 +451,14 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
         .replace(/<strong>/gi, '<strong style="font-weight:600;">');
     };
 
-     // 🔹 Fetch thread id
-     const [[threadRow]] = await pool.query(
+    // 🔹 Fetch thread id
+    const [[threadRow]] = await pool.query(
       `SELECT email_thread_id, display_id, incident_subject
        FROM incidents
        WHERE incident_number = ?
        ORDER BY id ASC
        LIMIT 1`,
-      [incidentNumber]
+      [incidentNumber],
     );
 
     const displayLabel = `INC-${String(threadRow.display_id).padStart(4, "0")}`;
@@ -443,7 +466,6 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
     if (!threadRow?.email_thread_id) {
       throw new Error("Email thread not found for incident");
     }
-
 
     const html = `
 <!DOCTYPE html>
@@ -558,7 +580,9 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
       </tr>
 
       <!-- ── MESSAGE BODY ── -->
-      ${messageHtml ? `
+      ${
+        messageHtml
+          ? `
       <tr>
         <td style="padding:24px 36px 8px 36px;">
           <p style="margin:0 0 10px 0;font-size:11px;font-weight:bold;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">
@@ -573,7 +597,8 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
             </tr>
           </table>
         </td>
-      </tr>` : `
+      </tr>`
+          : `
       <tr>
         <td style="padding:24px 36px 8px 36px;">
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -584,7 +609,8 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
             </tr>
           </table>
         </td>
-      </tr>`}
+      </tr>`
+      }
 
       <!-- ── INFO NOTE (table-based, no flex) ── -->
       <tr>
@@ -623,8 +649,8 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
                 <p style="margin:3px 0 0 0;font-size:11px;color:#9CA3AF;font-family:Arial,sans-serif;">IncidentManagement@taboola.com</p>
               </td>
               <td valign="middle" align="right">
-                <p style="margin:0;font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Incident ID</p>
-                <p style="margin:3px 0 0 0;font-size:13px;font-weight:bold;color:#111827;font-family:Arial,sans-serif;">${displayLabel}</p>
+                <p style="margin:0;font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Salesforce Case ID</p>
+                <p style="margin:3px 0 0 0;font-size:13px;font-weight:bold;color:#111827;font-family:Arial,sans-serif;">${incidentNumber}</p>
               </td>
             </tr>
           </table>
@@ -653,9 +679,9 @@ app.post("/api/v1/incidents/department-change-email", async (req, res) => {
         error: "No previous notification emails found",
       });
     }
-   
+
     await sendIncidentEmail({
-      to: STATIC_TO,
+      // to: STATIC_TO,
       // bcc: oldNotificationMails,
       bcc: "taboolaimaptest@gmail.com",
       subject: `Re: [Incident ${displayLabel}]: ${threadRow.incident_subject}`,

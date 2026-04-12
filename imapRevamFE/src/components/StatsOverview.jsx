@@ -114,7 +114,6 @@ const OngoingTooltip = ({ incidents, anchorRef }) => {
         </span>
       </div>
       <div className="max-h-56 overflow-y-auto">
-      {console.log(incidents)}
         {incidents.map((inc, i) => (
           <div
             key={i}

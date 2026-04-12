@@ -37,6 +37,14 @@ const DropdownBtn = (props) => {
             fontSize: "13px",
             fontFamily: "'Poppins', sans-serif",
           },
+          dropdown: {
+            backgroundColor: "var(--imap-dropdown-bg)",
+            border: "1px solid var(--imap-dropdown-border)",
+            borderRadius: 10,
+          },
+          option: {
+            color: "var(--imap-dropdown-option)",
+          },
         }}
         {...inputProps}
       />

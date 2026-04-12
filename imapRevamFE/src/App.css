@@ -202,10 +202,9 @@ form {
    Mantine overrides for cohesive look
    ═══════════════════════════════════════════ */
 
+/* Dropdown chrome follows Mantine color scheme (dark); only shape here */
 .mantine-Select-dropdown,
 .mantine-Popover-dropdown {
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
   border-radius: 10px !important;
 }
 
@@ -214,13 +213,41 @@ form {
   color: #fff !important;
 }
 
-.mantine-Modal-content {
+/* Modal chrome must follow color scheme — unscoped rules broke light mode (dark panel + dark text). */
+[data-mantine-color-scheme="dark"] .mantine-Modal-content {
   border-radius: 16px !important;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  background: linear-gradient(165deg, #101b2e 0%, #070f1a 100%) !important;
+  color: #e2e8f0 !important;
 }
 
-.mantine-Modal-header {
-  border-bottom: 1px solid #f1f5f9;
+[data-mantine-color-scheme="light"] .mantine-Modal-content {
+  border-radius: 16px !important;
+  box-shadow:
+    0 25px 60px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(15, 23, 42, 0.08) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+[data-mantine-color-scheme="dark"] .mantine-Modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: transparent !important;
+}
+
+[data-mantine-color-scheme="light"] .mantine-Modal-header {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1) !important;
+  background: transparent !important;
+}
+
+[data-mantine-color-scheme="dark"] .mantine-Modal-title {
+  color: #f8fafc !important;
+}
+
+[data-mantine-color-scheme="light"] .mantine-Modal-title {
+  color: #0f172a !important;
 }
 
 /* Card entrance animation */
@@ -242,16 +269,9 @@ aside::-webkit-scrollbar { width: 4px; }
 aside::-webkit-scrollbar-track { background: transparent; }
 aside::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
 
-/* Mantine dropdown polish */
-.mantine-Select-dropdown,
-.mantine-Popover-dropdown {
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
+/* Combobox: keep radius; surfaces come from Mantine dark scheme */
+.mantine-Combobox-dropdown {
   border-radius: 10px !important;
-}
-.mantine-Modal-content {
-  border-radius: 16px !important;
-  box-shadow: 0 25px 60px rgba(0,0,0,0.18) !important;
 }
 
 /* ═══════════════════════════════════════════
@@ -443,6 +463,25 @@ aside::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radi
   opacity: 0.7;
   cursor: wait;
   pointer-events: none;
+}
+
+[data-mantine-color-scheme="light"] .imap-ai-btn {
+  border-color: rgba(67, 56, 202, 0.42);
+  color: #4338ca;
+  background: linear-gradient(
+    135deg,
+    rgba(79, 70, 229, 0.1) 0%,
+    rgba(124, 58, 237, 0.08) 100%
+  );
+}
+
+[data-mantine-color-scheme="light"] .imap-ai-btn:hover {
+  border-color: rgba(67, 56, 202, 0.55);
+  background: linear-gradient(
+    135deg,
+    rgba(79, 70, 229, 0.14) 0%,
+    rgba(124, 58, 237, 0.12) 100%
+  );
 }
 
 /* ═══════════════════════════════════════════

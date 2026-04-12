@@ -1,4 +1,4 @@
-import { Modal } from "@mantine/core";
+import { Modal, useComputedColorScheme } from "@mantine/core";
 import IncidentTxtBox from "./IncidentTxtBox";
 
 /* ── Inject keyframes once (shared with ConfirmSubmitModal if present) ── */
@@ -23,11 +23,10 @@ if (typeof document !== "undefined" && !document.getElementById(STYLE_ID)) {
 /* ── Design tokens ── */
 const F = "'Poppins', 'Inter', Arial, sans-serif";
 const C = {
-  blue:   { solid:"#2563EB", grad:"#3B82F6", light:"#EFF6FF", ring:"#BFDBFE", text:"#1D4ED8" },
-  orange: { solid:"#F59E0B", grad:"#FBBF24", light:"#FFFBEB", ring:"#FDE68A", text:"#B45309" },
-  red:    { solid:"#EF4444", grad:"#F87171", light:"#FEF2F2", ring:"#FECACA", text:"#B91C1C" },
-  green:  { solid:"#16A34A", grad:"#4ADE80", light:"#F0FDF4", ring:"#BBF7D0", text:"#15803D" },
-  slate:  { border:"#E2E8F0", muted:"#94A3B8", soft:"#F8FAFC" },
+  blue:   { solid:"#2563EB", grad:"#3B82F6", light:"rgba(59,130,246,0.14)", ring:"rgba(96,165,250,0.45)", text:"#93c5fd" },
+  orange: { solid:"#F59E0B", grad:"#FBBF24", light:"rgba(251,191,36,0.14)", ring:"rgba(253,224,71,0.35)", text:"#fcd34d" },
+  red:    { solid:"#EF4444", grad:"#F87171", light:"rgba(248,113,113,0.12)", ring:"rgba(252,165,165,0.4)", text:"#fca5a5" },
+  green:  { solid:"#16A34A", grad:"#4ADE80", light:"rgba(52,211,153,0.12)", ring:"rgba(52,211,153,0.35)", text:"#6ee7b7" },
 };
 
 /* ── Shared primitives ── */
@@ -42,31 +41,41 @@ const Panel = ({ children }) => (
   </div>
 );
 
-const Halo = ({ color, pulse, size = 68, children }) => (
-  <div style={{ position: "relative", width: size, height: size }}>
-    {pulse && (
+const Halo = ({ color, pulse, size = 68, children }) => {
+  const scheme = useComputedColorScheme("dark", { getInitialValueInEffect: false });
+  const light = scheme === "light";
+  return (
+    <div style={{ position: "relative", width: size, height: size }}>
+      {pulse && (
+        <div style={{
+          position: "absolute", inset: -4, borderRadius: "50%",
+          background: color.ring,
+          animation: "dcPulse 2.2s ease-in-out infinite",
+        }} />
+      )}
       <div style={{
-        position: "absolute", inset: -4, borderRadius: "50%",
-        background: color.ring,
-        animation: "dcPulse 2.2s ease-in-out infinite",
-      }} />
-    )}
-    <div style={{
-      position: "absolute", inset: 0, borderRadius: "50%",
-      background: `linear-gradient(145deg, ${color.light} 0%, #fff 100%)`,
-      border: `1.5px solid ${color.ring}`,
-      boxShadow: `0 6px 22px -4px ${color.ring}`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      {children}
+        position: "absolute", inset: 0, borderRadius: "50%",
+        background: light
+          ? `linear-gradient(145deg, #ffffff 0%, #e2e8f0 55%, #f8fafc 100%)`
+          : `linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(7,15,26,0.92) 100%)`,
+        border: light
+          ? `1.5px solid ${color.ring}`
+          : `1.5px solid rgba(255,255,255,0.14)`,
+        boxShadow: light
+          ? `0 8px 24px -6px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255,255,255,0.9)`
+          : `0 6px 22px -4px ${color.ring}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {children}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Title = ({ children, color, delay = "0.08s" }) => (
   <div style={{
     fontSize: 17, fontWeight: 700, letterSpacing: "-0.3px",
-    color: color || "#0F172A", textAlign: "center",
+    color: color || "var(--imap-form-text)", textAlign: "center",
     animation: `dcFloat .3s ${delay} ease both`, opacity: 0,
   }}>
     {children}
@@ -75,7 +84,7 @@ const Title = ({ children, color, delay = "0.08s" }) => (
 
 const Caption = ({ children, delay = "0.14s" }) => (
   <div style={{
-    fontSize: 13, color: C.slate.muted, textAlign: "center",
+    fontSize: 13, color: "var(--imap-text-primary)", textAlign: "center",
     lineHeight: 1.65, maxWidth: 300, margin: "0 auto",
     animation: `dcFloat .3s ${delay} ease both`, opacity: 0,
   }}>
@@ -84,14 +93,14 @@ const Caption = ({ children, delay = "0.14s" }) => (
 );
 
 const Hr = () => (
-  <div style={{ width: "100%", height: 1, background: C.slate.border, margin: "2px 0" }} />
+  <div style={{ width: "100%", height: 1, background: "var(--imap-border-strong)", margin: "8px 0" }} />
 );
 
 const Btn = ({ label, onClick, primary = false, color = C.blue, disabled = false }) => {
   const base = {
     fontFamily: F, fontSize: 13, fontWeight: 600,
     padding: "9px 22px", borderRadius: 8, cursor: disabled ? "not-allowed" : "pointer",
-    transition: "transform .15s, box-shadow .15s, background .15s",
+    transition: "transform .15s, box-shadow .15s, background .15s, border-color .15s",
     outline: "none", letterSpacing: "0.15px", opacity: disabled ? 0.5 : 1,
     border: "none",
   };
@@ -111,11 +120,13 @@ const Btn = ({ label, onClick, primary = false, color = C.blue, disabled = false
     : <button
         style={{
           ...base,
-          background: "#fff", color: "#64748B",
-          border: "1.5px solid #E2E8F0",
+          background: "var(--imap-glass-08)",
+          color: "var(--imap-form-text)",
+          border: "1.5px solid var(--imap-border-strong)",
+          boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = "#F8FAFC"; e.currentTarget.style.borderColor = "#CBD5E1"; }}
-        onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#E2E8F0"; }}
+        onMouseEnter={e => { e.currentTarget.style.background = "var(--imap-glass-1)"; e.currentTarget.style.borderColor = "var(--imap-brand)"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "var(--imap-glass-08)"; e.currentTarget.style.borderColor = "var(--imap-border-strong)"; }}
         onClick={onClick}
       >{label}</button>;
 };
@@ -124,24 +135,27 @@ const Btn = ({ label, onClick, primary = false, color = C.blue, disabled = false
 const DeptFlow = ({ from, to }) => (
   <div style={{
     display: "flex", alignItems: "center", gap: 10,
-    background: C.slate.soft, border: `1px solid ${C.slate.border}`,
+    background: "var(--imap-surface-glass)",
+    border: "1px solid var(--imap-border-default)",
     borderRadius: 12, padding: "10px 18px",
     animation: "dcSlideIn .35s .1s ease both", opacity: 0,
   }}>
     <div style={{
-      background: C.orange.light, border: `1px solid ${C.orange.ring}`,
+      background: "var(--imap-accent-amber-bg)",
+      border: "1px solid rgba(251, 191, 36, 0.45)",
       borderRadius: 7, padding: "5px 14px",
-      fontSize: 13, fontWeight: 600, color: C.orange.text,
+      fontSize: 13, fontWeight: 600, color: "var(--imap-accent-amber-fg)",
     }}>
       {from}
     </div>
     <div style={{ animation: "dcArrow 1.4s ease-in-out infinite" }}>
-      <i className="fa-solid fa-arrow-right" style={{ color: C.slate.muted, fontSize: 13 }} />
+      <i className="fa-solid fa-arrow-right" style={{ color: "var(--imap-text-muted)", fontSize: 13 }} />
     </div>
     <div style={{
-      background: C.blue.light, border: `1px solid ${C.blue.ring}`,
+      background: "var(--imap-brand-dim)",
+      border: "1px solid var(--imap-border-accent)",
       borderRadius: 7, padding: "5px 14px",
-      fontSize: 13, fontWeight: 600, color: C.blue.text,
+      fontSize: 13, fontWeight: 600, color: "var(--imap-brand)",
     }}>
       {to}
     </div>
@@ -154,18 +168,18 @@ const Toggle = ({ checked, onChange, label }) => (
     display: "flex", alignItems: "center", gap: 10,
     cursor: "pointer", userSelect: "none",
     padding: "10px 16px", borderRadius: 10,
-    border: `1.5px solid ${checked ? C.blue.ring : C.slate.border}`,
-    background: checked ? C.blue.light : "#fff",
+    border: checked ? "1.5px solid rgba(37, 99, 235, 0.45)" : "1.5px solid var(--imap-border-strong)",
+    background: checked ? "var(--imap-brand-dim)" : "var(--imap-glass-04)",
     transition: "all .2s ease",
-    fontSize: 13, fontWeight: 500,
-    color: checked ? C.blue.text : "#475569",
+    fontSize: 13, fontWeight: 600,
+    color: checked ? "var(--imap-brand)" : "var(--imap-text-primary)",
     animation: "dcFloat .3s .22s ease both", opacity: 0,
   }}>
     {/* Custom checkbox */}
     <div style={{
       width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-      border: `2px solid ${checked ? C.blue.solid : "#CBD5E1"}`,
-      background: checked ? C.blue.solid : "#fff",
+      border: `2px solid ${checked ? C.blue.solid : "var(--imap-border-strong)"}`,
+      background: checked ? C.blue.solid : "var(--imap-surface-0)",
       display: "flex", alignItems: "center", justifyContent: "center",
       transition: "all .18s ease",
     }}>
@@ -193,6 +207,9 @@ const DepartmentChangeFlow = ({
   onNext,
   onSend,
 }) => {
+  const colorScheme = useComputedColorScheme("dark", { getInitialValueInEffect: false });
+  const lightChrome = colorScheme === "light";
+
   if (!toDepartment && step === "confirm") return null;
 
   return (
@@ -206,11 +223,14 @@ const DepartmentChangeFlow = ({
       radius="xl"
       padding="xl"
       size={step === "compose" ? "min(90vw, 860px)" : 400}
-      overlayProps={{ blur: 5, opacity: 0.3 }}
+      overlayProps={{ blur: 5, opacity: lightChrome ? 0.22 : 0.3 }}
       styles={{
         content: {
           fontFamily: F,
-          boxShadow: "0 28px 64px -8px rgba(15,23,42,.18), 0 0 0 1px #E2E8F0",
+          background: "var(--imap-modal-surface)",
+          boxShadow: lightChrome
+            ? "0 24px 48px -12px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.08)"
+            : "0 28px 64px -8px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,0.06)",
           overflow: "hidden",
           transition: "width .25s ease",
         },
@@ -237,7 +257,7 @@ const DepartmentChangeFlow = ({
             display: "flex", alignItems: "flex-start", gap: 9,
             background: C.red.light, border: `1px solid ${C.red.ring}`,
             borderRadius: 9, padding: "9px 14px",
-            fontSize: 12, color: C.red.text, fontWeight: 500,
+            fontSize: 12, color: "var(--imap-accent-rose-fg)", fontWeight: 600,
             width: "100%", boxSizing: "border-box",
             animation: "dcFloat .3s .18s ease both", opacity: 0,
           }}>
@@ -271,37 +291,39 @@ const DepartmentChangeFlow = ({
           animation: "dcFadeUp 0.28s cubic-bezier(.22,.68,0,1.2) both",
           display: "flex", flexDirection: "column", gap: 20,
         }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 16, borderBottom: `1px solid ${C.slate.border}` }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: "50%", flexShrink: 0,
-              background: C.blue.light, border: `1.5px solid ${C.blue.ring}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <i className="fa-solid fa-envelope" style={{ color: C.blue.solid, fontSize: 16 }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A", letterSpacing: "-0.2px" }}>
-                Notify Stakeholders
+          <div style={{
+            paddingBottom: 16,
+            borderBottom: "1px solid var(--imap-glass-line)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, width: "100%" }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: "50%", flexShrink: 0,
+                background: "var(--imap-brand-dim)",
+                border: "1.5px solid var(--imap-border-accent)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <i className="fa-solid fa-envelope" style={{ color: "var(--imap-brand)", fontSize: 16 }} />
               </div>
-              <div style={{ fontSize: 12, color: C.slate.muted, marginTop: 2 }}>
-                Compose the message for the department change notification
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "var(--imap-form-text)", letterSpacing: "-0.2px" }}>
+                  Notify Stakeholders
+                </div>
+                <div style={{ fontSize: 12, color: "var(--imap-text-muted)", marginTop: 2, fontWeight: 500 }}>
+                  Compose the message for the department change notification
+                </div>
               </div>
             </div>
-            {/* From → To badge inline */}
-            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.orange.text, background: C.orange.light, border: `1px solid ${C.orange.ring}`, borderRadius: 6, padding: "3px 10px" }}>
-                {fromDepartment}
-              </span>
-              <i className="fa-solid fa-arrow-right" style={{ color: C.slate.muted, fontSize: 11 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.blue.text, background: C.blue.light, border: `1px solid ${C.blue.ring}`, borderRadius: 6, padding: "3px 10px" }}>
-                {toDepartment}
-              </span>
+            <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+              <DeptFlow from={fromDepartment} to={toDepartment} />
             </div>
           </div>
 
-          {/* Rich text editor */}
           <IncidentTxtBox
+            surface="auto"
             startingLine=""
             context="department_change"
             inputProps={{
@@ -313,7 +335,7 @@ const DepartmentChangeFlow = ({
           {/* Actions */}
           <div style={{
             display: "flex", justifyContent: "flex-end", gap: 10,
-            paddingTop: 14, borderTop: `1px solid ${C.slate.border}`,
+            paddingTop: 14, borderTop: "1px solid var(--imap-glass-line)",
           }}>
             <Btn label="← Back" onClick={onCancel} />
             <Btn label="Send & Change Department" onClick={onSend} primary color={C.blue} />
@@ -346,14 +368,14 @@ const DepartmentChangeFlow = ({
             <div style={{
               position: "absolute", inset: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, fontWeight: 700, color: C.blue.text,
+              fontSize: 14, fontWeight: 700, color: "var(--imap-brand)",
             }}>
               {progress}%
             </div>
           </div>
 
           <div style={{ width: "100%", textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", marginBottom: 12 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--imap-text-bright)", marginBottom: 12 }}>
               Notifying Stakeholders
             </div>
 
@@ -368,7 +390,7 @@ const DepartmentChangeFlow = ({
               }} />
             </div>
 
-            <div style={{ fontSize: 11, color: C.slate.muted, marginTop: 8, letterSpacing: "0.5px" }}>
+            <div style={{ fontSize: 11, color: "var(--imap-text-muted)", marginTop: 8, letterSpacing: "0.5px" }}>
               Sending notifications and updating the incident
             </div>
           </div>
@@ -404,7 +426,7 @@ const DepartmentChangeFlow = ({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <Title color={C.green.text} delay="0.1s">Department Changed!</Title>
+            <Title color="var(--imap-accent-green-fg)" delay="0.1s">Department Changed!</Title>
             <Caption delay="0.18s">
               The incident has been updated and all stakeholders have been notified.
             </Caption>
@@ -419,7 +441,7 @@ const DepartmentChangeFlow = ({
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               background: C.green.light, border: `1px solid ${C.green.ring}`,
               borderRadius: 10, padding: "9px 18px",
-              fontSize: 12, fontWeight: 600, color: C.green.text,
+              fontSize: 12, fontWeight: 600, color: "var(--imap-accent-green-fg)",
             }}>
               <i className="fa-solid fa-circle-check" style={{ fontSize: 11 }} />
               Incident updated · Stakeholders notified
@@ -428,13 +450,14 @@ const DepartmentChangeFlow = ({
             {/* From → To summary */}
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              background: C.slate.soft, border: `1px solid ${C.slate.border}`,
+              background: "var(--imap-surface-glass)",
+              border: "1px solid var(--imap-border-default)",
               borderRadius: 10, padding: "8px 16px",
-              fontSize: 12, color: C.slate.muted,
+              fontSize: 12, color: "var(--imap-text-muted)",
             }}>
-              <span style={{ fontWeight: 600, color: C.orange.text }}>{fromDepartment}</span>
+              <span style={{ fontWeight: 600, color: "var(--imap-accent-amber-fg)" }}>{fromDepartment}</span>
               <i className="fa-solid fa-arrow-right" style={{ fontSize: 10 }} />
-              <span style={{ fontWeight: 600, color: C.blue.text }}>{toDepartment}</span>
+              <span style={{ fontWeight: 600, color: "var(--imap-brand)" }}>{toDepartment}</span>
             </div>
           </div>
 

@@ -39,7 +39,38 @@ const valueStyle = {
   fontFamily: FONT,
 };
 
+const DISPLAY_INCIDENT_LABEL = /^INC-\d+$/i;
+
+/** Footer must show Salesforce Case id (e.g. 500Rg…), not platform display INC-#### */
+function resolveSalesforceCaseId(data) {
+  const primary = data?.incident_number;
+  if (
+    primary != null &&
+    String(primary).trim() !== "" &&
+    !DISPLAY_INCIDENT_LABEL.test(String(primary).trim())
+  ) {
+    return String(primary).trim();
+  }
+  const hist = Array.isArray(data?.history) ? data.history : [];
+  for (let i = 0; i < hist.length; i++) {
+    const id = hist[i]?.incident_number;
+    if (
+      id != null &&
+      String(id).trim() !== "" &&
+      !DISPLAY_INCIDENT_LABEL.test(String(id).trim())
+    ) {
+      return String(id).trim();
+    }
+  }
+  if (primary != null && String(primary).trim() !== "") {
+    return String(primary).trim();
+  }
+  return "—";
+}
+
 const EmailTemplate = ({ data }) => {
+  const salesforceCaseId = resolveSalesforceCaseId(data);
+
   const remaining = data.remainingStatus || [];
   const firstStatus = remaining.length > 0 ? remaining[0].statusName : "";
   const currentStatus = data.showStatus || data.incident_status;
@@ -905,7 +936,7 @@ const EmailTemplate = ({ data }) => {
                   fontFamily: FONT,
                 },
               },
-              "Incident ID",
+              "Salesforce Case ID",
             ),
             el(
               "div",
@@ -917,7 +948,7 @@ const EmailTemplate = ({ data }) => {
                   fontFamily: FONT,
                 },
               },
-              data.incident_number,
+              salesforceCaseId,
             ),
           ),
         ),

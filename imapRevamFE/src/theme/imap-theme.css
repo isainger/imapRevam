@@ -1,0 +1,324 @@
+/* ═══ Incident Management — semantic colors (Mantine toggles [data-mantine-color-scheme] on <html>) ═══ */
+
+:root,
+[data-mantine-color-scheme="dark"] {
+  color-scheme: dark;
+
+  /* Page & chrome */
+  --imap-page-bg: #020617;
+  --imap-page-bg-mesh: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(0, 102, 255, 0.14), transparent 55%);
+  --imap-header-bg: #001b3d;
+  --imap-header-border: #0a2844;
+  --imap-header-shadow: inset 0 -1px 0 rgba(0, 102, 255, 0.12);
+  --imap-sidebar-from: #0c1829;
+  --imap-sidebar-to: #070f1a;
+  --imap-sidebar-border: rgba(255, 255, 255, 0.08);
+  --imap-surface-0: #0b1220;
+  --imap-surface-1: rgba(2, 6, 23, 0.55);
+  --imap-surface-glass: rgba(255, 255, 255, 0.06);
+  --imap-surface-glass-hover: rgba(255, 255, 255, 0.1);
+  --imap-surface-chip: rgba(255, 255, 255, 0.05);
+  --imap-surface-row-hover: rgba(255, 255, 255, 0.025);
+  --imap-surface-active: rgba(0, 102, 255, 0.08);
+
+  /* Text */
+  --imap-text-primary: #e2e8f0;
+  --imap-text-bright: #f8fafc;
+  --imap-text-search: #e8eef7;
+  --imap-text-secondary: #cbd5e1;
+  --imap-text-muted: #94a3b8;
+  --imap-text-dim: #64748b;
+  --imap-text-inverse: #0f172a;
+
+  /* Borders & dividers */
+  --imap-border-default: rgba(255, 255, 255, 0.1);
+  --imap-border-subtle: rgba(255, 255, 255, 0.08);
+  --imap-border-muted: rgba(255, 255, 255, 0.05);
+  --imap-border-strong: rgba(255, 255, 255, 0.14);
+  --imap-border-accent: rgba(255, 255, 255, 0.2);
+
+  /* Brand */
+  --imap-brand: #0066ff;
+  --imap-brand-hover: #0052cc;
+  --imap-brand-dim: rgba(0, 102, 255, 0.14);
+  --imap-brand-glow: rgba(0, 102, 255, 0.55);
+
+  /* UTC / clock chip (form) */
+  --imap-utc-chip-bg: rgba(0, 86, 240, 0.06);
+  --imap-utc-chip-border: rgba(0, 86, 240, 0.18);
+  --imap-utc-chip-icon: #0056f0;
+  --imap-utc-label: #f8fafc;
+
+  /* Form overlay (Bar) */
+  --imap-form-overlay-bg: #020617;
+  --imap-form-scrollbar: rgba(255, 255, 255, 0.09);
+
+  /* Modal / palette backdrop */
+  --imap-backdrop-scrim: rgba(0, 0, 0, 0.55);
+  --imap-palette-panel-bg: rgba(7, 14, 44, 0.97);
+  --imap-palette-panel-border: rgba(255, 255, 255, 0.1);
+  --imap-modal-surface: linear-gradient(165deg, #141d2e 0%, #0c1424 100%);
+  --imap-wizard-footer: linear-gradient(180deg, #0a1628 0%, #050a12 100%);
+
+  /* Inputs (global .custom-input) */
+  --imap-input-border: #6badef;
+  --imap-input-border-focus: #155dfc;
+  --imap-input-glow: #013c7b;
+  --imap-input-bg: transparent;
+
+  /* Recipient public page */
+  --imap-recipient-backdrop: linear-gradient(135deg, #0f172a 0%, #020617 45%, #0c1829 100%);
+  --imap-recipient-card: rgba(15, 23, 42, 0.92);
+  --imap-recipient-card-border: rgba(255, 255, 255, 0.08);
+  --imap-recipient-info-bg: rgba(255, 255, 255, 0.04);
+  --imap-recipient-info-border: rgba(255, 255, 255, 0.08);
+  --imap-recipient-section-title: #cbd5e1;
+  --imap-recipient-grid-border: rgba(255, 255, 255, 0.1);
+  --imap-recipient-row-border: rgba(255, 255, 255, 0.06);
+  --imap-recipient-footer-border: rgba(255, 255, 255, 0.08);
+  --imap-recipient-footer-text: #94a3b8;
+  --imap-recipient-email: #e2e8f0;
+  --imap-recipient-spinner-track: rgba(255, 255, 255, 0.12);
+
+  /* Logo on header (invert for dark chrome) */
+  --imap-logo-filter: brightness(0) invert(1);
+  --imap-app-name-color: rgba(255, 255, 255, 0.75);
+
+  /* Dashboard chrome (header logo strip, white text on navy) */
+  --imap-chrome-text: #ffffff;
+  --imap-chrome-text-soft: rgba(255, 255, 255, 0.92);
+  --imap-chrome-date: rgba(255, 255, 255, 0.9);
+  --imap-chrome-muted: rgba(255, 255, 255, 0.45);
+  --imap-chrome-kbd-fg: rgba(255, 255, 255, 0.55);
+  --imap-chrome-divider: rgba(255, 255, 255, 0.3);
+  --imap-chrome-logo-border: rgba(255, 255, 255, 0.1);
+  --imap-grid-line: rgba(255, 255, 255, 0.012);
+
+  /* Glass panels, tables, command palette */
+  --imap-glass-line: rgba(255, 255, 255, 0.07);
+  --imap-glass-line-soft: rgba(255, 255, 255, 0.06);
+  --imap-glass-line-strong: rgba(255, 255, 255, 0.12);
+  --imap-glass-012: rgba(255, 255, 255, 0.012);
+  --imap-glass-025: rgba(255, 255, 255, 0.025);
+  --imap-glass-028: rgba(255, 255, 255, 0.028);
+  --imap-glass-03: rgba(255, 255, 255, 0.03);
+  --imap-glass-04: rgba(255, 255, 255, 0.04);
+  --imap-glass-05: rgba(255, 255, 255, 0.05);
+  --imap-glass-06: rgba(255, 255, 255, 0.06);
+  --imap-glass-08: rgba(255, 255, 255, 0.08);
+  --imap-glass-09: rgba(255, 255, 255, 0.09);
+  --imap-glass-1: rgba(255, 255, 255, 0.1);
+  --imap-command-panel-bg: rgba(7, 14, 44, 0.98);
+  --imap-code-block-bg: rgba(0, 0, 0, 0.25);
+  --imap-tabs-fade: linear-gradient(
+    90deg,
+    rgba(2, 6, 23, 0.95),
+    rgba(2, 6, 23, 0)
+  );
+  --imap-tabbar-grad-from: rgba(0, 8, 32, 0.6);
+  --imap-tabbar-grad-to: rgba(2, 6, 23, 0.3);
+
+  /* Wizard cards & form fields (inside overlay) */
+  --imap-fstep-card-bg: rgba(255, 255, 255, 0.045);
+  --imap-field-fill: rgba(255, 255, 255, 0.04);
+  --imap-field-fill-focus: rgba(0, 102, 255, 0.05);
+  --imap-dropdown-bg: #141d2e;
+  --imap-dropdown-border: rgba(255, 255, 255, 0.12);
+  --imap-dropdown-option: #e2e8f0;
+
+  /* Form mock — translucent layers on dark */
+  --imap-form-border: rgba(255, 255, 255, 0.14);
+  --imap-form-brand: #0066ff;
+  --imap-form-brand-dim: rgba(0, 102, 255, 0.14);
+  --imap-form-text: #f8fafc;
+  --imap-form-muted: #94a3b8;
+  --imap-form-secondary: #e2e8f0;
+  --imap-elev-06: rgba(255, 255, 255, 0.06);
+  --imap-elev-08: rgba(255, 255, 255, 0.08);
+  --imap-elev-09: rgba(255, 255, 255, 0.09);
+  --imap-elev-10: rgba(255, 255, 255, 0.1);
+  --imap-elev-12: rgba(255, 255, 255, 0.12);
+  --imap-elev-14: rgba(255, 255, 255, 0.14);
+  --imap-elev-16: rgba(255, 255, 255, 0.16);
+  --imap-elev-18: rgba(255, 255, 255, 0.18);
+  --imap-elev-20: rgba(255, 255, 255, 0.2);
+  --imap-elev-25: rgba(255, 255, 255, 0.25);
+  --imap-elev-45: rgba(255, 255, 255, 0.45);
+  --imap-elev-50: rgba(255, 255, 255, 0.5);
+  --imap-elev-55: rgba(255, 255, 255, 0.55);
+  --imap-elev-75: rgba(255, 255, 255, 0.75);
+  --imap-elev-025: rgba(255, 255, 255, 0.025);
+
+  /* Accent text on tinted pills (dashboard + badges) */
+  --imap-accent-amber-fg: #fbbf24;
+  --imap-accent-amber-bg: rgba(251, 191, 36, 0.12);
+  --imap-accent-cyan-fg: #22d3ee;
+  --imap-accent-cyan-bg: rgba(34, 211, 238, 0.12);
+  --imap-accent-violet-fg: #c4b5fd;
+  --imap-accent-violet-bg: rgba(167, 139, 250, 0.14);
+  --imap-accent-green-fg: #34d399;
+  --imap-accent-green-bg: rgba(52, 211, 153, 0.12);
+  --imap-accent-rose-fg: #fb7185;
+  --imap-accent-rose-bg: rgba(251, 113, 133, 0.12);
+
+  --imap-fetch-btn-bg: rgba(124, 58, 237, 0.22);
+  --imap-fetch-btn-border: rgba(124, 58, 237, 0.45);
+  --imap-fetch-btn-text: #e9d5ff;
+  --imap-fetch-btn-hover: rgba(124, 58, 237, 0.34);
+}
+
+[data-mantine-color-scheme="light"] {
+  color-scheme: light;
+
+  --imap-page-bg: #f1f5f9;
+  --imap-page-bg-mesh: radial-gradient(ellipse 120% 80% at 50% -30%, rgba(37, 99, 235, 0.12), transparent 55%);
+  --imap-header-bg: #ffffff;
+  --imap-header-border: #e2e8f0;
+  --imap-header-shadow: inset 0 -1px 0 rgba(37, 99, 235, 0.08);
+  --imap-sidebar-from: #f8fafc;
+  --imap-sidebar-to: #f1f5f9;
+  --imap-sidebar-border: rgba(15, 23, 42, 0.08);
+  --imap-surface-0: #ffffff;
+  --imap-surface-1: rgba(255, 255, 255, 0.92);
+  --imap-surface-glass: rgba(15, 23, 42, 0.04);
+  --imap-surface-glass-hover: rgba(37, 99, 235, 0.06);
+  --imap-surface-chip: rgba(15, 23, 42, 0.04);
+  --imap-surface-row-hover: rgba(37, 99, 235, 0.05);
+  --imap-surface-active: rgba(37, 99, 235, 0.1);
+
+  --imap-text-primary: #0f172a;
+  --imap-text-bright: #020617;
+  --imap-text-search: #1e293b;
+  --imap-text-secondary: #334155;
+  --imap-text-muted: #475569;
+  --imap-text-dim: #64748b;
+  --imap-text-inverse: #f8fafc;
+
+  --imap-border-default: rgba(15, 23, 42, 0.1);
+  --imap-border-subtle: rgba(15, 23, 42, 0.08);
+  --imap-border-muted: rgba(15, 23, 42, 0.06);
+  --imap-border-strong: rgba(15, 23, 42, 0.14);
+  --imap-border-accent: rgba(37, 99, 235, 0.25);
+
+  --imap-brand: #2563eb;
+  --imap-brand-hover: #1d4ed8;
+  --imap-brand-dim: rgba(37, 99, 235, 0.12);
+  --imap-brand-glow: rgba(37, 99, 235, 0.35);
+
+  --imap-utc-chip-bg: rgba(37, 99, 235, 0.08);
+  --imap-utc-chip-border: rgba(37, 99, 235, 0.22);
+  --imap-utc-chip-icon: #2563eb;
+  --imap-utc-label: #0f172a;
+
+  --imap-form-overlay-bg: #f8fafc;
+  --imap-form-scrollbar: rgba(15, 23, 42, 0.15);
+
+  --imap-backdrop-scrim: rgba(15, 23, 42, 0.45);
+  --imap-palette-panel-bg: #ffffff;
+  --imap-palette-panel-border: rgba(15, 23, 42, 0.1);
+  --imap-modal-surface: linear-gradient(165deg, #ffffff 0%, #f1f5f9 100%);
+  --imap-wizard-footer: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+
+  --imap-input-border: #93c5fd;
+  --imap-input-border-focus: #2563eb;
+  --imap-input-glow: rgba(37, 99, 235, 0.35);
+  --imap-input-bg: #ffffff;
+
+  --imap-recipient-backdrop: linear-gradient(135deg, #e8eef7 0%, #f1f5f9 50%, #e2e8f0 100%);
+  --imap-recipient-card: #ffffff;
+  --imap-recipient-card-border: rgba(15, 23, 42, 0.08);
+  --imap-recipient-info-bg: #f8fafc;
+  --imap-recipient-info-border: #e2e8f0;
+  --imap-recipient-section-title: #334155;
+  --imap-recipient-grid-border: #e2e8f0;
+  --imap-recipient-row-border: #f1f5f9;
+  --imap-recipient-footer-border: #e2e8f0;
+  --imap-recipient-footer-text: #64748b;
+  --imap-recipient-email: #334155;
+  --imap-recipient-spinner-track: #e2e8f0;
+
+  --imap-logo-filter: none;
+  --imap-app-name-color: #475569;
+
+  --imap-chrome-text: #0f172a;
+  --imap-chrome-text-soft: #334155;
+  --imap-chrome-date: #475569;
+  --imap-chrome-muted: rgba(15, 23, 42, 0.45);
+  --imap-chrome-kbd-fg: rgba(15, 23, 42, 0.55);
+  --imap-chrome-divider: rgba(15, 23, 42, 0.15);
+  --imap-chrome-logo-border: rgba(15, 23, 42, 0.1);
+  --imap-grid-line: rgba(15, 23, 42, 0.06);
+
+  --imap-glass-line: rgba(15, 23, 42, 0.1);
+  --imap-glass-line-soft: rgba(15, 23, 42, 0.08);
+  --imap-glass-line-strong: rgba(15, 23, 42, 0.14);
+  --imap-glass-012: rgba(15, 23, 42, 0.03);
+  --imap-glass-025: rgba(37, 99, 235, 0.04);
+  --imap-glass-028: rgba(37, 99, 235, 0.05);
+  --imap-glass-03: rgba(255, 255, 255, 0.88);
+  --imap-glass-04: rgba(15, 23, 42, 0.04);
+  --imap-glass-05: rgba(15, 23, 42, 0.05);
+  --imap-glass-06: rgba(15, 23, 42, 0.06);
+  --imap-glass-08: rgba(15, 23, 42, 0.08);
+  --imap-glass-09: rgba(15, 23, 42, 0.09);
+  --imap-glass-1: rgba(15, 23, 42, 0.1);
+  --imap-command-panel-bg: rgba(255, 255, 255, 0.98);
+  --imap-code-block-bg: rgba(241, 245, 249, 0.95);
+  --imap-tabs-fade: linear-gradient(
+    90deg,
+    rgba(248, 250, 252, 0.98),
+    rgba(248, 250, 252, 0)
+  );
+  --imap-tabbar-grad-from: rgba(255, 255, 255, 0.92);
+  --imap-tabbar-grad-to: rgba(241, 245, 249, 0.65);
+
+  --imap-fstep-card-bg: #ffffff;
+  --imap-field-fill: #ffffff;
+  --imap-field-fill-focus: rgba(37, 99, 235, 0.06);
+  --imap-dropdown-bg: #ffffff;
+  --imap-dropdown-border: rgba(15, 23, 42, 0.12);
+  --imap-dropdown-option: #1e293b;
+
+  --imap-form-border: rgba(15, 23, 42, 0.12);
+  --imap-form-brand: #2563eb;
+  --imap-form-brand-dim: rgba(37, 99, 235, 0.12);
+  --imap-form-text: #0f172a;
+  --imap-form-muted: #475569;
+  --imap-form-secondary: #1e293b;
+  --imap-elev-06: rgba(15, 23, 42, 0.04);
+  --imap-elev-08: rgba(15, 23, 42, 0.06);
+  --imap-elev-09: rgba(15, 23, 42, 0.08);
+  --imap-elev-10: rgba(15, 23, 42, 0.08);
+  --imap-elev-12: rgba(15, 23, 42, 0.1);
+  --imap-elev-14: rgba(15, 23, 42, 0.12);
+  --imap-elev-16: rgba(15, 23, 42, 0.12);
+  --imap-elev-18: rgba(15, 23, 42, 0.14);
+  --imap-elev-20: rgba(15, 23, 42, 0.14);
+  --imap-elev-25: rgba(15, 23, 42, 0.18);
+  --imap-elev-45: rgba(15, 23, 42, 0.45);
+  --imap-elev-50: rgba(15, 23, 42, 0.5);
+  --imap-elev-55: rgba(15, 23, 42, 0.55);
+  --imap-elev-75: rgba(15, 23, 42, 0.75);
+  --imap-elev-025: rgba(37, 99, 235, 0.05);
+
+  --imap-accent-amber-fg: #b45309;
+  --imap-accent-amber-bg: rgba(251, 191, 36, 0.28);
+  --imap-accent-cyan-fg: #0e7490;
+  --imap-accent-cyan-bg: rgba(34, 211, 238, 0.2);
+  --imap-accent-violet-fg: #5b21b6;
+  --imap-accent-violet-bg: rgba(167, 139, 250, 0.22);
+  --imap-accent-green-fg: #047857;
+  --imap-accent-green-bg: rgba(52, 211, 153, 0.22);
+  --imap-accent-rose-fg: #be123c;
+  --imap-accent-rose-bg: rgba(251, 113, 133, 0.18);
+
+  --imap-fetch-btn-bg: rgba(91, 33, 182, 0.14);
+  --imap-fetch-btn-border: rgba(91, 33, 182, 0.35);
+  --imap-fetch-btn-text: #5b21b6;
+  --imap-fetch-btn-hover: rgba(91, 33, 182, 0.22);
+}
+
+/* IncidentData sidebar — hover without hardcoded light-theme colors */
+.imap-incident-status-link:hover {
+  color: var(--imap-brand-hover);
+}

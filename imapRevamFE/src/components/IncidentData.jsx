@@ -1,7 +1,13 @@
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useComputedColorScheme } from "@mantine/core";
 
 const IncidentData = ({ incidentData }) => {
+  const colorScheme = useComputedColorScheme("dark", {
+    getInitialValueInEffect: false,
+  });
+  const lightTooltip = colorScheme === "light";
+
   const [timeline, setTimeline] = useState([]);
   const [activeIndex, setActiveIndex] = useState(null);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
@@ -70,8 +76,11 @@ const IncidentData = ({ incidentData }) => {
 
   return (
     <div className="shrink-0">
-      <h2 className="text-xs font-medium text-[#7bcdff] mb-3 uppercase tracking-wider">
-        Current Incident Status
+      <h2
+        className="mb-3 text-xs font-medium uppercase tracking-[0.18em]"
+        style={{ color: "var(--imap-form-brand)" }}
+      >
+        Current incident status
       </h2>
       <div className="space-y-3">
         {timeline.map((item, index) => {
@@ -105,15 +114,21 @@ const IncidentData = ({ incidentData }) => {
                   </div>
                 </div>
                 {index < timeline.length - 1 && (
-                  <div className={`w-px h-5 mt-1 ${isCompleted ? "bg-[#00f0d2]" : "bg-white/20"}`} />
+                  <div
+                    className="mt-1 h-5 w-px"
+                    style={{
+                      background: isCompleted ? "#34d399" : "var(--imap-border-strong)",
+                    }}
+                  />
                 )}
               </div>
               <div className="pt-1">
                 <p
                   ref={(el) => (itemRefs.current[index] = el)}
-                  className={`text-sm font-bold cursor-pointer transition-colors ${
-                    isCompleted ? "text-[#7bcdff]" : "text-white"
-                  } hover:text-white`}
+                  className="imap-incident-status-link cursor-pointer text-sm font-bold transition-colors"
+                  style={{
+                    color: isCompleted ? "var(--imap-brand)" : "var(--imap-text-bright)",
+                  }}
                   onMouseEnter={() => showTooltip(index)}
                   onMouseLeave={hideTooltip}
                 >
@@ -146,13 +161,19 @@ const IncidentData = ({ incidentData }) => {
                       left: coords.left + 8,
                       width: 340,
                       maxHeight: 360,
-                      background: "linear-gradient(135deg, #002852 0%, #003f7f 100%)",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: lightTooltip
+                        ? "#ffffff"
+                        : "linear-gradient(135deg, #002852 0%, #003f7f 100%)",
+                      border: lightTooltip
+                        ? "1px solid rgba(15, 23, 42, 0.12)"
+                        : "1px solid rgba(255,255,255,0.1)",
                       padding: 0,
                       zIndex: 999999999,
                       borderRadius: 12,
                       overflowY: "auto",
-                      boxShadow: "0 12px 40px rgba(0,20,50,0.5)",
+                      boxShadow: lightTooltip
+                        ? "0 16px 48px rgba(15, 23, 42, 0.14)"
+                        : "0 12px 40px rgba(0,20,50,0.5)",
                     }}
                     onMouseEnter={() => clearTimeout(hideTimeout.current)}
                     onMouseLeave={hideTooltip}
@@ -160,7 +181,9 @@ const IncidentData = ({ incidentData }) => {
                     {/* Header */}
                     <div style={{
                       padding: "12px 16px",
-                      borderBottom: "1px solid rgba(255,255,255,0.1)",
+                      borderBottom: lightTooltip
+                        ? "1px solid #e2e8f0"
+                        : "1px solid rgba(255,255,255,0.1)",
                       display: "flex",
                       alignItems: "center",
                       gap: "8px",
@@ -169,7 +192,7 @@ const IncidentData = ({ incidentData }) => {
                         width: "8px",
                         height: "8px",
                         borderRadius: "50%",
-                        background: isCompleted ? "#00f0d2" : "#0056f0",
+                        background: isCompleted ? "#34d399" : "#2563eb",
                         display: "inline-block",
                         flexShrink: 0,
                       }} />
@@ -177,7 +200,7 @@ const IncidentData = ({ incidentData }) => {
                         fontSize: "11px",
                         textTransform: "uppercase",
                         letterSpacing: "0.08em",
-                        color: "rgba(255,255,255,0.5)",
+                        color: lightTooltip ? "#64748b" : "rgba(255,255,255,0.5)",
                         fontWeight: 600,
                         fontFamily: "'Poppins', sans-serif",
                       }}>
@@ -185,7 +208,7 @@ const IncidentData = ({ incidentData }) => {
                       </span>
                       <span style={{
                         fontSize: "12px",
-                        color: "#fff",
+                        color: lightTooltip ? "#0f172a" : "#fff",
                         fontWeight: 700,
                         fontFamily: "'Poppins', sans-serif",
                       }}>
@@ -199,19 +222,31 @@ const IncidentData = ({ incidentData }) => {
                         <div
                           key={idx}
                           style={{
-                            background: "rgba(255,255,255,0.06)",
-                            border: "1px solid rgba(255,255,255,0.08)",
+                            background: lightTooltip
+                              ? "#f8fafc"
+                              : "rgba(255,255,255,0.06)",
+                            border: lightTooltip
+                              ? "1px solid #e2e8f0"
+                              : "1px solid rgba(255,255,255,0.08)",
                             borderRadius: "10px",
                             padding: "10px 12px",
                             marginBottom: idx < allEntries.length - 1 ? "6px" : 0,
                             transition: "background 0.15s",
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                          onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = lightTooltip
+                              ? "#f1f5f9"
+                              : "rgba(255,255,255,0.1)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = lightTooltip
+                              ? "#f8fafc"
+                              : "rgba(255,255,255,0.06)";
+                          }}
                         >
                           <p style={{
                             fontSize: "10px",
-                            color: "rgba(255,255,255,0.4)",
+                            color: lightTooltip ? "#64748b" : "rgba(255,255,255,0.4)",
                             fontFamily: "'Poppins', sans-serif",
                             marginBottom: "4px",
                           }}>
@@ -224,7 +259,7 @@ const IncidentData = ({ incidentData }) => {
                             style={{
                               fontWeight: 600,
                               fontSize: "13px",
-                              color: "#fff",
+                              color: lightTooltip ? "#0f172a" : "#fff",
                               fontFamily: "'Poppins', sans-serif",
                               lineHeight: 1.5,
                             }}
@@ -238,7 +273,7 @@ const IncidentData = ({ incidentData }) => {
                               style={{
                                 marginTop: "4px",
                                 fontSize: "12px",
-                                color: "rgba(255,255,255,0.6)",
+                                color: lightTooltip ? "#475569" : "rgba(255,255,255,0.6)",
                                 fontFamily: "'Poppins', sans-serif",
                                 lineHeight: 1.5,
                               }}

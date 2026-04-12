@@ -1,11 +1,150 @@
+@import "./theme/imap-theme.css";
 @import "tailwindcss";
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ─── IMAP dashboard shell (matches design-mockup-form-v2.html) ─── */
+.imap-mock-shell {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 15px;
+  color: var(--imap-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+.imap-mock-shell .imap-mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+@keyframes imapMeshDrift {
+  0% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.04) translateY(-14px);
+    opacity: 0.88;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+.imap-mock-shell .imap-mesh-bg {
+  animation: imapMeshDrift 22s ease-in-out infinite alternate;
+}
+@keyframes imapPulseRing {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 5px transparent;
+    opacity: 0.7;
+  }
+}
+.imap-mock-shell .imap-hero-pulse {
+  animation: imapPulseRing 2s ease-in-out infinite;
+}
+@keyframes imapAiBreathe {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgba(167, 139, 250, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.85));
+  }
+}
+.imap-mock-shell .imap-ai-brain {
+  animation: imapAiBreathe 3s ease-in-out infinite;
+}
+.imap-mock-shell .imap-glass-card {
+  position: relative;
+}
+.imap-mock-shell .imap-glass-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.07),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+.imap-search-mock {
+  transition:
+    border-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    background 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.imap-search-mock:hover {
+  background: var(--imap-elev-06);
+  border-color: var(--imap-elev-14);
+  box-shadow: 0 0 0 1px rgba(0, 102, 255, 0.15);
+}
+
+/* Dashboard header: one bar — search matches navy chrome (no separate dark panel). */
+.imap-search-mock--in-header {
+  background: var(--imap-elev-06);
+  border-color: var(--imap-elev-14);
+}
+.imap-search-mock--in-header:hover {
+  background: var(--imap-elev-10);
+  border-color: var(--imap-elev-20);
+  box-shadow: 0 0 0 1px rgba(0, 102, 255, 0.22);
+}
+.imap-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  background: var(--imap-backdrop-scrim);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 110px;
+  animation: imapFadeIn 0.2s ease;
+}
+@keyframes imapFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.imap-palette-panel {
+  width: min(560px, calc(100vw - 32px));
+  background: var(--imap-palette-panel-bg);
+  border: 1px solid var(--imap-palette-panel-border);
+  border-radius: 14px;
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(0, 102, 255, 0.08);
+  overflow: hidden;
+  animation: imapPalettePop 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes imapPalettePop {
+  from {
+    transform: scale(0.96) translateY(-10px);
+  }
+  to {
+    transform: scale(1) translateY(0);
+  }
+}
 @import "@mantine/core/styles.css";
 @import "@mantine/tiptap/styles.css";
 @import "@mantine/dates/styles.css";
+
+html {
+  color-scheme: dark light;
+}
 
 html,
 body,
@@ -13,10 +152,19 @@ body,
   min-height: 100vh;
   min-width: 100vw;
   font-size: 13px;
-  color: #3C4449;
-  background: #f0f4f8;
+  color: var(--imap-text-primary);
+  background: var(--imap-page-bg);
   overflow: hidden;
- font-family: "Poppins", sans-serif !important
+  font-family: "Poppins", sans-serif !important;
+}
+
+[data-mantine-shared-portal-node] {
+  color: var(--imap-text-primary);
+}
+
+/* Non-selected combobox / autocomplete rows (inherit was picking up wrong contrast) */
+[data-combobox-option]:not([data-combobox-selected]):not([data-combobox-disabled]) {
+  color: var(--imap-text-primary);
 }
 
 .banner{
@@ -38,18 +186,19 @@ body,
 
 .custom-input {
   font-size: 16px;
-  border: 1px solid #6badef;
+  border: 1px solid var(--imap-input-border);
   border-radius: 4px;
   word-break: normal;
-  background: transparent;
+  background: var(--imap-input-bg);
   font-family: Arial, sans-serif;
   transition: 0.3s;
   padding: 8px 12px;
   box-sizing: border-box;
+  color: var(--imap-text-primary);
 }
 .custom-input:focus {
-  border-color: #155dfc;
-  box-shadow: 0px 0px 2px 0px #013c7b;
+  border-color: var(--imap-input-border-focus);
+  box-shadow: 0px 0px 2px 0px var(--imap-input-glow);
   outline: none;
 }
 
@@ -430,4 +579,35 @@ body,
 
 .animate-scale-in {
   animation: scaleIn 0.4s ease-out;
+}
+
+/* ─── Interactive affordance (buttons, Mantine controls, comboboxes) ─── */
+button:not(:disabled):not([disabled]),
+[role="button"]:not([aria-disabled="true"]),
+[type="button"]:not(:disabled),
+[type="submit"]:not(:disabled),
+[type="reset"]:not(:disabled),
+.mantine-CloseButton-root,
+.mantine-ActionIcon-root,
+[data-rich-text-editor-control],
+.mantine-RichTextEditor-control,
+.mantine-ComboboxChevron,
+.mantine-InputClearButton-root,
+[role="combobox"]:not([aria-disabled="true"]),
+[role="menuitem"]:not([aria-disabled="true"]),
+[role="option"]:not([aria-disabled="true"]),
+[role="tab"]:not([aria-disabled="true"]),
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+[disabled],
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.mantine-RichTextEditor-control[data-disabled],
+.mantine-Combobox-option[data-combobox-disabled] {
+  cursor: not-allowed !important;
 }

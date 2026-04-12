@@ -36,7 +36,15 @@ const DateTimeSelector = (props) => {
       <label className="imap-field-label" style={{ marginBottom: "7px" }}>
         {label.replace(/\s*\(UTC\)\s*:?\s*$/, "").replace(/:\s*$/, "")}
         {" "}
-        <span style={{ fontSize: "10px", fontWeight: 500, textTransform: "none", letterSpacing: 0, color: "#94a3b8" }}>
+        <span
+          style={{
+            fontSize: "10px",
+            fontWeight: 500,
+            textTransform: "none",
+            letterSpacing: 0,
+            color: "var(--imap-utc-label)",
+          }}
+        >
           (UTC)
         </span>
         <span className="imap-required">*</span>
@@ -93,22 +101,26 @@ const DateTimeSelector = (props) => {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "8px",
-                  background: "rgba(0, 86, 240, 0.06)",
-                  border: "1.5px solid rgba(0, 86, 240, 0.18)",
+                  background: "var(--imap-utc-chip-bg)",
+                  border: "1.5px solid var(--imap-utc-chip-border)",
                   borderRadius: "10px",
                   padding: "8px 14px",
                 }}
               >
                 <i
                   className="fa-regular fa-clock"
-                  style={{ color: "#0056f0", fontSize: "14px", flexShrink: 0 }}
+                  style={{
+                    color: "var(--imap-utc-chip-icon)",
+                    fontSize: "14px",
+                    flexShrink: 0,
+                  }}
                 />
                 <Text
                   size="sm"
                   style={{
                     fontFamily: "'Poppins', sans-serif",
                     lineHeight: 1.4,
-                    color: "#334155",
+                    color: "var(--imap-utc-label)",
                     fontWeight: 500,
                     fontSize: "13px",
                   }}

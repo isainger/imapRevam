@@ -8,11 +8,10 @@ import RadioBtn from "./components/RadioBtn";
 import IncidentTxtBox from "./components/IncidentTxtBox";
 import DropdownBtn from "./components/DropdownBtn";
 import MultiSelectEmails from "./components/MultiSelectEmails";
-import ActionBtn from "./components/ActionBtn";
 import InputBtn from "./components/InputBtn";
 import DateTimeSelector from "./components/DateTimeSelector";
 import EmailTemplateLayout from "./utils/EmailTemplateLayout";
-import { Box, Textarea, Modal } from "@mantine/core";
+import { Box, Textarea, Modal, useComputedColorScheme } from "@mantine/core";
 import SearchableInput from "./components/SearchableInput";
 import { notifications } from "@mantine/notifications";
 import {
@@ -24,10 +23,16 @@ import {
 import DepartmentCard from "./components/DepartmentCard";
 import IncidentData from "./components/IncidentData";
 import ConfirmSubmitModal from "./components/ConfirmSubmitModal";
-import StatsOverview from "./components/StatsOverview";
 import DepartmentChangeFlow from "./components/DepartmentChangeFlow";
+import ImapDashboardShell from "./components/ImapDashboardShell";
+import "./styles/imapFormMock.css";
 
 const Bar = () => {
+  const colorScheme = useComputedColorScheme("dark", {
+    getInitialValueInEffect: false,
+  });
+  const previewDark = colorScheme === "dark";
+
   const formTabs = ["Advertiser", "General", "Publisher"];
   const [formStep, setFormStep] = useState(1);
   const [incidentAction, setIncidentAction] = useState([]);
@@ -50,6 +55,7 @@ const Bar = () => {
   const [departmentLocked, setDepartmentLocked] = useState(false);
   const prevStatusRef = useRef(null);
   const statusUpdateCacheRef = useRef({});
+  const pendingFlowSwitchRef = useRef(null);
 
   const statusGradientMapNormal = {
     Suspected: {
@@ -837,10 +843,35 @@ const Bar = () => {
     });
   };
   const openConfirm = (purpose) => {
-    setConfirmPurpose(purpose); // "exit" | "submit"
+    setConfirmPurpose(purpose); // "exit" | "submit" | "switchFlow"
     setConfirmStage("confirm");
     setConfirmOpen(true);
   };
+
+  function shouldConfirmDiscardBeforeFlowSwitch() {
+    if (!incidentAction.showForm) return false;
+    if (incidentAction.actionType === "create") {
+      return isCreateFormDirty() || formStep > 1;
+    }
+    if (incidentAction.actionType === "update") {
+      if (originalIncident != null) return true;
+      if (Array.isArray(oldIncidentData) && oldIncidentData.length > 0)
+        return true;
+      if (formStep > 1) return true;
+      if (String(form.values.inputBox.inputNumber || "").trim()) return true;
+      return false;
+    }
+    return false;
+  }
+
+  function beginFlowSwitch(run) {
+    if (!shouldConfirmDiscardBeforeFlowSwitch()) {
+      run();
+      return;
+    }
+    pendingFlowSwitchRef.current = run;
+    openConfirm("switchFlow");
+  }
   const handleExitToDashboard = () => {
     const hasUnsavedChanges =
       (incidentAction.actionType === "update" &&
@@ -990,6 +1021,16 @@ const Bar = () => {
   };
   const handleConfirmSubmit = async () => {
     if (saving) return;
+
+    if (confirmPurpose === "switchFlow") {
+      setConfirmOpen(false);
+      setConfirmStage("confirm");
+      const run = pendingFlowSwitchRef.current;
+      pendingFlowSwitchRef.current = null;
+      resetToMainScreen();
+      run?.();
+      return;
+    }
 
     // EXIT CONFIRM FLOW
     if (confirmPurpose === "exit") {
@@ -1181,10 +1222,11 @@ const Bar = () => {
       if (computedStep === "department")
         return {
           icon: "fa-solid fa-building",
-          iconColor: "#7c3aed",
+          iconColor: "var(--imap-brand)",
           label: "Step 2 of 3",
           title: "Select Department",
-          subtitle: "Choose the team responsible for owning this incident.",
+          subtitle:
+            "Choose the team responsible for owning this incident. Pick the team that should own the next steps.",
         };
       if (computedStep === "form")
         return {
@@ -1209,12 +1251,12 @@ const Bar = () => {
         };
       if (computedStep === "department")
         return {
-          icon: "fa-solid fa-building-circle-arrow-right",
-          iconColor: "#7c3aed",
+          icon: "fa-solid fa-building",
+          iconColor: "var(--imap-brand)",
           label: "Step 2 of 3",
           title: "Update Department",
           subtitle:
-            "Reassign this incident to a different department if needed.",
+            "Reassign this incident to a different department if needed. Pick the team that should own the next steps.",
         };
       if (computedStep === "form")
         return {
@@ -1287,366 +1329,181 @@ const Bar = () => {
     handleDeptCancel();
   };
 
+  const openCreateFlow = () => {
+    beginFlowSwitch(() => {
+      setOldIncidentData(null);
+      setOriginalIncident(null);
+      setFormStep(1);
+      setDepartmentLocked(false);
+      form.setFieldValue("inputBox.inputNumber", "");
+      setIncidentAction({ showForm: true, actionType: "create" });
+    });
+  };
+
+  const openUpdateFlow = () => {
+    beginFlowSwitch(() => {
+      setOldIncidentData(null);
+      setOriginalIncident(null);
+      setFormStep(1);
+      setDepartmentLocked(false);
+      form.setFieldValue("inputBox.inputNumber", "");
+      setIncidentAction({ showForm: true, actionType: "update" });
+    });
+  };
+
+  const openUpdateFlowWithIncident = (incidentNumber) => {
+    const v =
+      incidentNumber != null ? String(incidentNumber).trim() : "";
+    beginFlowSwitch(() => {
+      setOldIncidentData(null);
+      setOriginalIncident(null);
+      setFormStep(1);
+      setDepartmentLocked(false);
+      form.setFieldValue("inputBox.inputNumber", v);
+      setIncidentAction({ showForm: true, actionType: "update" });
+    });
+  };
+
   return (
-    <>
-      {!incidentAction.showForm && (
-        <div
-          className="w-full flex flex-col items-center justify-center px-6 py-10 gap-10"
-          style={{ minHeight: "calc(100vh - 200px)" }}
-        >
-          {/* Welcome heading */}
-          <div className="text-center">
-            <p className="text-xs font-semibold text-[#0056f0] uppercase tracking-[3px] mb-2">
-              Incident Management
-            </p>
-            <h1 className="text-3xl font-extrabold text-slate-800 mb-2">
-              What would you like to do?
-            </h1>
-            <p className="text-sm text-slate-400">
-              Choose an action below to get started
-            </p>
-          </div>
-
-          {/* Action cards */}
-          <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6 cursor-pointer">
-            {/* CREATE CARD */}
-            <div
-              className="group relative flex flex-col items-start justify-between
-          bg-white rounded-2xl p-8 gap-5 border border-slate-200/60
-          hover:border-[#0056f0]/30 transition-all duration-300
-          hover:shadow-[0_20px_50px_rgba(0,86,240,0.12)] hover:-translate-y-1"
-              onClick={() =>
-                setIncidentAction({ showForm: true, actionType: "create" })
-              }
-            >
-              <div
-                className="w-14 h-14 rounded-2xl bg-[#0056f0]/8 flex items-center justify-center
-          group-hover:bg-[#0056f0] group-hover:scale-110 transition-all duration-300"
-              >
-                <i className="fa-solid fa-plus text-[#0056f0] group-hover:text-white transition-colors text-xl" />
-              </div>
-              <div>
-                <p className="font-bold text-lg text-slate-800 mb-1">
-                  Create Incident
-                </p>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  Log a new incident with severity, impact, timeline and
-                  ownership
-                </p>
-              </div>
-              <div
-                className="flex items-center gap-2 text-[#0056f0] text-xs font-semibold
-          opacity-0 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all duration-300"
-              >
-                <span>Get started</span>
-                <i className="fa-solid fa-arrow-right text-[10px]" />
-              </div>
-              <div
-                className="absolute top-0 left-8 right-8 h-[3px] rounded-b-full
-          bg-gradient-to-r from-[#0056f0] to-[#00c6ff]
-          scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
-              />
-            </div>
-
-            {/* UPDATE CARD */}
-            <div
-              className="group relative flex flex-col items-start justify-between
-          bg-white rounded-2xl p-8 gap-5 border border-slate-200/60
-          hover:border-[#7c3aed]/30 transition-all duration-300
-          hover:shadow-[0_20px_50px_rgba(124,58,237,0.12)] hover:-translate-y-1"
-              onClick={() =>
-                setIncidentAction({ showForm: true, actionType: "update" })
-              }
-            >
-              <div
-                className="w-14 h-14 rounded-2xl bg-[#7c3aed]/8 flex items-center justify-center
-          group-hover:bg-[#7c3aed] group-hover:scale-110 transition-all duration-300"
-              >
-                <i className="fa-solid fa-pen-to-square text-[#7c3aed] group-hover:text-white transition-colors text-xl" />
-              </div>
-              <div>
-                <p className="font-bold text-lg text-slate-800 mb-1">
-                  Update Ongoing Incident
-                </p>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  Send updates for an existing open incident
-                </p>
-              </div>
-              <div
-                className="flex items-center gap-2 text-[#7c3aed] text-xs font-semibold
-          opacity-0 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all duration-300"
-              >
-                <span>Continue</span>
-                <i className="fa-solid fa-arrow-right text-[10px]" />
-              </div>
-              <div
-                className="absolute top-0 left-8 right-8 h-[3px] rounded-b-full
-          bg-gradient-to-r from-[#7c3aed] to-[#a78bfa]
-          scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
-              />
-            </div>
-          </div>
-
-          {/* Quick tips */}
-          <div className="w-full max-w-3xl grid grid-cols-3 gap-4 mt-2">
-            <div className="flex items-center gap-3 bg-white/60 rounded-xl px-4 py-3 border border-slate-100">
-              <i className="fa-solid fa-bolt text-amber-400 text-sm" />
-              <span className="text-xs text-slate-500">
-                Multi-account impact triggers incident classification
-              </span>{" "}
-            </div>
-            <div className="flex items-center gap-3 bg-white/60 rounded-xl px-4 py-3 border border-slate-100">
-              <i className="fa-solid fa-envelope text-[#0056f0] text-sm" />
-              <span className="text-xs text-slate-500">
-                Stakeholders are notified via email
-              </span>
-            </div>
-            <div className="flex items-center gap-3 bg-white/60 rounded-xl px-4 py-3 border border-slate-100">
-              <i className="fa-solid fa-clock-rotate-left text-emerald-500 text-sm" />
-              <span className="text-xs text-slate-500">
-                Full incident history is tracked
-              </span>
-            </div>
-          </div>
-
-          {/* STATS */}
-          <div className="fixed bottom-0 left-0 w-full bg-transparent z-40">
-            <div className="mx-auto max-w-6xl px-4 pb-4">
-              <StatsOverview incidents={allIncidents} />
-            </div>
-          </div>
-        </div>
-      )}
-      {incidentAction.showForm && (
-        <div
-          className="w-full
-max-w-[1800px] mx-auto bg-[#f7f8fb] rounded-2xl
-mt-2 mb-2 shadow-[0_18px_40px_rgba(15,23,42,0.18)]
-h-[calc(100vh-110px)] flex flex-col overflow-hidden "
-        >
-          {/* Main grid */}
-          <div
-            className="grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr]
-gap-0 flex-1 min-h-0"
-          >
-            {/* LEFT — Stepper */}
-            <aside className="p-4 flex flex-col justify-start gap-4 bg-[#002852] overflow-hidden">
-              {/* ── Back button (now lives inside the sidebar) ── */}
-              <button
-                className="imap-back-btn group relative flex items-center gap-3 w-full px-4 py-3 mb-2 rounded-2xl cursor-pointer overflow-hidden outline-none transition-all duration-400"
-                onClick={prevStep}
-                type="button"
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(0,86,240,0.08) 100%)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <span className="imap-back-shimmer absolute inset-0 pointer-events-none" />
-                <div
-                  className="relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 group-hover:scale-110"
-                  style={{ background: "rgba(255,255,255,0.08)" }}
-                >
-                  <i className="fa-solid fa-arrow-left text-sm text-white/60 group-hover:text-white transition-all duration-300" />
+    <ImapDashboardShell
+      incidents={allIncidents}
+      onCreate={openCreateFlow}
+      onUpdate={openUpdateFlow}
+      onEditIncident={({ incidentNumber }) =>
+        openUpdateFlowWithIncident(incidentNumber)
+      }
+      formOpen={!!incidentAction.showForm}
+      sidebarWorkflow={
+        incidentAction.showForm ? (
+          <>
+            <div className="imap-sidebar-workflow-top">
+              <button type="button" className="fstep-back" onClick={prevStep}>
+                <div className="fstep-back-icon" aria-hidden>
+                  <i className="fa-solid fa-arrow-left" />
                 </div>
-                <div className="flex flex-col items-start">
-                  <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-semibold leading-none mb-1 transition-colors duration-300 group-hover:text-white/50">
+                <div className="fstep-back-labels">
+                  <div className="fstep-back-top">
                     {formStep === 1 ? "Navigate" : `Step ${formStep} of 3`}
-                  </span>
-                  <span className="text-sm font-bold text-white/70 transition-all duration-300 group-hover:text-white">
+                  </div>
+                  <div className="fstep-back-main">
                     {formStep === 1 ? "Back to Dashboard" : "Previous Step"}
-                  </span>
+                  </div>
                 </div>
-                <div
-                  className="ml-auto w-2.5 h-2.5 rounded-full transition-all duration-500 group-hover:scale-150"
-                  style={{ background: "rgba(0,86,240,0.4)" }}
-                />
               </button>
-              {/* Stepper */}
-              <div className="mb-4">
-                <h2 className="text-xs font-medium text-[#7bcdff] mb-4 uppercase tracking-wider">
-                  Progress
-                </h2>
-                <div className="space-y-4">
-                  {/* STEP 1 */}
-                  <div className="flex items-start gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="relative w-8 h-8">
-                        {formStep === 1 && (
-                          <div className="absolute inset-0 rounded-full bg-[#0056f0] animate-ping opacity-40" />
-                        )}
+              <div className="fstep-progress-label">Progress</div>
+              <div className="fstep-list">
+                {[
+                  incidentAction.actionType === "update"
+                    ? "Fetch Incident"
+                    : "Known Issue",
+                  "Department",
+                  "Incident Form",
+                ].map((label, idx) => {
+                  const n = idx + 1;
+                  const done = formStep > n;
+                  const active = formStep === n;
+                  return (
+                    <div key={label} className="fstep-item">
+                      <div className="fstep-track">
                         <div
-                          className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                            formStep > 1
-                              ? "bg-[#00f0d2]"
-                              : formStep === 1
-                                ? "bg-[#0056f0]"
-                                : "bg-white/10 border border-white/20"
-                          }`}
+                          className={`fstep-dot ${done ? "done" : active ? "active" : "pending"}`}
                         >
-                          {formStep > 1 ? (
+                          {done ? (
                             <Check
-                              className="w-4 h-4 text-[#002852]"
-                              strokeWidth={2.5}
+                              className="h-3.5 w-3.5 text-[#002818]"
+                              strokeWidth={3}
                             />
                           ) : (
-                            <span
-                              className={`text-xs font-medium ${formStep === 1 ? "text-white" : "text-white/40"}`}
-                            >
-                              1
-                            </span>
+                            n
                           )}
                         </div>
+                        {idx < 2 ? (
+                          <div
+                            className={`fstep-line ${formStep > n ? "done" : ""}`}
+                          />
+                        ) : null}
                       </div>
-                      <div
-                        className={`w-px h-8 mt-1 ${formStep > 1 ? "bg-[#00f0d2]" : "bg-white/20"}`}
-                      />
-                    </div>
-                    <div className="pt-1.5">
-                      <p
-                        className={`text-sm font-bold ${
-                          formStep === 1
-                            ? "text-white"
-                            : formStep > 1
-                              ? "text-[#7bcdff]"
-                              : "text-white/40"
-                        }`}
-                      >
-                        {incidentAction.actionType === "update"
-                          ? "Fetch Incident"
-                          : "Known Issue"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* STEP 2 */}
-                  <div className="flex items-start gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="relative w-8 h-8">
-                        {formStep === 2 && (
-                          <div className="absolute inset-0 rounded-full bg-[#0056f0] animate-ping opacity-40" />
-                        )}
+                      <div className="fstep-name-wrap">
                         <div
-                          className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                            formStep > 2
-                              ? "bg-[#00f0d2]"
-                              : formStep === 2
-                                ? "bg-[#0056f0]"
-                                : "bg-white/10 border border-white/20"
-                          }`}
+                          className={`fstep-name ${done ? "done" : active ? "active" : "pending"}`}
                         >
-                          {formStep > 2 ? (
-                            <Check
-                              className="w-4 h-4 text-[#002852]"
-                              strokeWidth={2.5}
-                            />
-                          ) : (
-                            <span
-                              className={`text-xs font-medium ${formStep === 2 ? "text-white" : "text-white/40"}`}
-                            >
-                              2
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div
-                        className={`w-px h-8 mt-1 ${formStep > 2 ? "bg-[#00f0d2]" : "bg-white/20"}`}
-                      />
-                    </div>
-                    <div className="pt-1.5">
-                      <p
-                        className={`text-sm font-bold ${
-                          formStep === 2
-                            ? "text-white"
-                            : formStep > 2
-                              ? "text-[#7bcdff]"
-                              : "text-white/40"
-                        }`}
-                      >
-                        Department
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* STEP 3 */}
-                  <div className="flex items-start gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="relative w-8 h-8">
-                        {formStep === 3 && (
-                          <div className="absolute inset-0 rounded-full bg-[#0056f0] animate-ping opacity-40" />
-                        )}
-                        <div
-                          className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                            formStep === 3
-                              ? "bg-[#0056f0]"
-                              : "bg-white/10 border border-white/20"
-                          }`}
-                        >
-                          <span
-                            className={`text-xs font-medium ${formStep === 3 ? "text-white" : "text-white/40"}`}
-                          >
-                            3
-                          </span>
+                          {label}
                         </div>
                       </div>
                     </div>
-                    <div className="pt-1.5">
-                      <p
-                        className={`text-sm font-bold ${formStep === 3 ? "text-white" : "text-white/40"}`}
-                      >
-                        Incident Form
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
-
-              {oldIncidentData && (
-                <div className="mt-auto flex flex-col gap-4">
+            </div>
+            <div className="imap-sidebar-workflow-bottom">
+              {oldIncidentData ? (
+                <>
                   <IncidentData incidentData={oldIncidentData} />
-
-                  {/* Current Incident Info Card */}
-                  <div
-                    className="rounded-xl p-4 border border-white/10"
-                    style={{ background: "rgba(255,255,255,0.04)" }}
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <i className="fa-solid fa-circle-info text-[#7bcdff] text-xs" />
-                      <span className="text-[10px] font-semibold text-[#7bcdff] uppercase tracking-widest">
-                        Current Incident
+                  <div className="fstep-inc-card">
+                    <div className="fstep-inc-header">
+                      <i className="fa-solid fa-circle-info" />
+                      <span>Current incident</span>
+                    </div>
+                    <div className="fstep-inc-row">
+                      <span className="fstep-inc-key">Display ID</span>
+                      <span className="fstep-inc-val">
+                        {oldIncidentData[0]?.display_id != null &&
+                        oldIncidentData[0]?.display_id !== ""
+                          ? `INC-${String(oldIncidentData[0].display_id).padStart(4, "0")}`
+                          : "—"}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-white/40">Incident ID</span>
-                      <span className="text-sm font-bold text-white">
-                        #{oldIncidentData[0]?.display_id || "—"}
+                    <div className="fstep-inc-row">
+                      <span className="fstep-inc-key">Salesforce #</span>
+                      <span className="fstep-inc-val fstep-inc-mono">
+                        {oldIncidentData[0]?.incident_number || "—"}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-white/40">Priority</span>
+                    <div className="fstep-inc-row">
+                      <span className="fstep-inc-key">Severity</span>
                       <span
-                        className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                        className="fstep-inc-sev rounded-full px-2 py-0.5 text-xs font-semibold"
                         style={{
                           backgroundColor:
-                            form.values.dropDown.severity === "Emergency"
-                              ? "rgba(239,68,68,0.15)"
-                              : form.values.dropDown.severity === "High"
-                                ? "rgba(245,158,11,0.15)"
+                            (oldIncidentData[0]?.severity ||
+                              form.values.dropDown.severity) === "Emergency"
+                              ? "var(--imap-accent-rose-bg)"
+                              : (oldIncidentData[0]?.severity ||
+                                    form.values.dropDown.severity) === "High"
+                                ? "var(--imap-accent-amber-bg)"
                                 : "rgba(59,130,246,0.15)",
                           color:
-                            form.values.dropDown.severity === "Emergency"
-                              ? "#f87171"
-                              : form.values.dropDown.severity === "High"
-                                ? "#fbbf24"
-                                : "#60a5fa",
+                            (oldIncidentData[0]?.severity ||
+                              form.values.dropDown.severity) === "Emergency"
+                              ? "var(--imap-accent-rose-fg)"
+                              : (oldIncidentData[0]?.severity ||
+                                    form.values.dropDown.severity) === "High"
+                                ? "var(--imap-accent-amber-fg)"
+                                : "var(--imap-brand)",
                         }}
                       >
-                        {form.values.dropDown.severity || "—"}
+                        {oldIncidentData[0]?.severity ||
+                          form.values.dropDown.severity ||
+                          "—"}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-white/40">Created</span>
-                      <span className="text-sm font-semibold text-white/70">
+                    <div className="fstep-inc-row">
+                      <span className="fstep-inc-key">Status</span>
+                      <span className="fstep-inc-small font-semibold" style={{ color: "var(--imap-form-secondary)" }}>
+                        {oldIncidentData[0]?.incident_status || "—"}
+                      </span>
+                    </div>
+                    <div className="fstep-inc-row">
+                      <span className="fstep-inc-key">Department</span>
+                      <span className="fstep-inc-small font-semibold" style={{ color: "var(--imap-form-secondary)" }}>
+                        {oldIncidentData[0]?.departmentName ||
+                          form.values.departmentName ||
+                          "—"}
+                      </span>
+                    </div>
+                    <div className="fstep-inc-row">
+                      <span className="fstep-inc-key">Created</span>
+                      <span className="fstep-inc-val text-sm font-semibold" style={{ color: "var(--imap-text-secondary)" }}>
                         {oldIncidentData[0]?.created_at
                           ? new Date(
                               oldIncidentData[0].created_at
@@ -1659,65 +1516,61 @@ gap-0 flex-1 min-h-0"
                       </span>
                     </div>
                   </div>
-                </div>
-              )}
-            </aside>
-
-            {/* RIGHT — FORM */}
-            <section className="w-full overflow-y-auto p-2 min-h-0">
-              <Box
-                mx="auto"
-                p="xs"
-                radius="md"
-                shadow="lg"
-                className="w-full flex flex-col items-center h-full"
-              >
-                {(() => {
+                </>
+              ) : null}
+            </div>
+          </>
+        ) : null
+      }
+      formOverlay={
+        incidentAction.showForm ? (
+          <>
+            {computedStep !== "department"
+              ? (() => {
                   const meta = getSectionMeta();
                   if (!meta) return null;
                   return (
-                    <div className="w-full mb-6 px-2">
-                      <div className="flex items-center gap-3 mb-3">
-                        {/* Icon badge */}
+                    <div className="fhdr">
+                      <div className="fhdr-top">
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: meta.iconColor + "18" }}
-                        >
-                          <i
-                            className={`${meta.icon} text-base`}
-                            style={{ color: meta.iconColor }}
-                          />
-                        </div>
-                        {/* Step label pill */}
-                        <span
-                          className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                          className="fhdr-icon"
                           style={{
-                            backgroundColor: meta.iconColor + "18",
+                            background: `${meta.iconColor}22`,
                             color: meta.iconColor,
+                          }}
+                        >
+                          <i className={meta.icon} />
+                        </div>
+                        <span
+                          className="fhdr-pill"
+                          style={{
+                            background: `${meta.iconColor}22`,
+                            color: meta.iconColor,
+                            border: `1px solid ${meta.iconColor}44`,
                           }}
                         >
                           {meta.label}
                         </span>
                       </div>
-                      {/* Title */}
-                      <h1 className="text-2xl font-bold text-slate-800 mb-1">
-                        {meta.title}
-                      </h1>
-                      {/* Subtitle */}
-                      <p className="text-sm text-slate-400 leading-relaxed">
-                        {meta.subtitle}
-                      </p>
-                      {/* Accent line */}
+                      <h1 className="fhdr-h1">{meta.title}</h1>
+                      <p className="fhdr-sub">{meta.subtitle}</p>
                       <div
-                        className="mt-4 h-px w-full rounded-full"
+                        className="fhdr-line"
                         style={{
-                          background: `linear-gradient(to right, ${meta.iconColor}40, transparent)`,
+                          background: `linear-gradient(to right, ${meta.iconColor}55, transparent)`,
                         }}
                       />
                     </div>
                   );
-                })()}{" "}
-                <form className="w-full h-full overflow-y-auto p-2 flex flex-col items-start gap-3">
+                })()
+              : null}
+            <Box
+              mx={0}
+              p={0}
+              className="flex min-h-0 w-full flex-1 flex-col bg-transparent"
+              style={{ boxShadow: "none" }}
+            >
+              <form className="flex min-h-0 w-full flex-1 flex-col items-start gap-3 overflow-y-auto">
                   {" "}
                   {/* Already Incident */}
                   {/* ======================= ✅ STEP 1 ======================= */}
@@ -1733,67 +1586,83 @@ gap-0 flex-1 min-h-0"
                       }}
                     /> */}
                   {computedStep === "fetchIncident" && (
-                    <div className="w-full h-full flex flex-col justify-center items-center gap-6 px-4">
-                      {/* Visual card */}
-                      <div
-                        className="w-full max-w-md bg-white rounded-2xl border border-slate-200/60 p-8
-      shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col items-center gap-6"
-                      >
-                        {/* Icon */}
-                        <div className="w-16 h-16 rounded-2xl bg-[#7c3aed]/8 flex items-center justify-center">
-                          <i className="fa-solid fa-magnifying-glass text-[#7c3aed] text-2xl" />
+                    <div className="fstep-center form-mock-dark-radio w-full px-2">
+                      <div className="fstep-card">
+                        <div
+                          className="fstep-card-icon"
+                          style={{
+                            background: "rgba(124, 58, 237, 0.14)",
+                            color: "#a78bfa",
+                          }}
+                        >
+                          <i className="fa-solid fa-magnifying-glass" />
                         </div>
-
-                        {/* Title */}
-                        <div className="text-center">
-                          <h2 className="text-sm font-bold text-slate-800 mb-1">
+                        <div>
+                          <h2 className="fstep-card-title">
                             Find your incident
                           </h2>
-                          <p className="text-xs text-slate-400 leading-relaxed">
-                            Enter the incident number or Salesforce Case ID to
-                            load it
+                          <p className="fstep-card-desc">
+                            Enter the incident number as listed in Case ID or
+                            Task ID
                           </p>
                         </div>
-
-                        {/* Input */}
                         {incidentAction.actionType === "update" && (
                           <div className="w-full">
-                            <InputBtn
-                              horizontalLayout={false}
-                              title="Incident Number"
-                              width="100%"
-                              placeholder="e.g. 5001X00001abc or Case ID"
-                              isBtn={true}
-                              onClick={async (e) => {
-                                e.preventDefault();
-                                const result = form.validateField(
-                                  "inputBox.inputNumber"
-                                );
-                                if (result.hasError) return;
-                                const success = await searchIncident(e);
-                                if (success) nextStep();
-                              }}
-                              inputProps={{
-                                ...form.getInputProps("inputBox.inputNumber"),
-                                onChange: (e) =>
-                                  handleChange(
-                                    "inputBox.inputNumber",
-                                    e.target.value
-                                  ),
-                              }}
-                            />
+                            <div className="f-field">
+                              <label className="f-label">
+                                Incident number{" "}
+                                <span className="f-req">*</span>
+                              </label>
+                              <div className="f-fetch-row">
+                                <input
+                                  className="f-input"
+                                  placeholder="e.g. 2024013001-ABC or Case ID"
+                                  value={
+                                    form.values.inputBox.inputNumber ?? ""
+                                  }
+                                  onChange={(e) =>
+                                    handleChange(
+                                      "inputBox.inputNumber",
+                                      e.target.value
+                                    )
+                                  }
+                                  onBlur={
+                                    form.getInputProps("inputBox.inputNumber")
+                                      .onBlur
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  className="f-fetch-btn"
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    const result = form.validateField(
+                                      "inputBox.inputNumber"
+                                    );
+                                    if (result.hasError) return;
+                                    const success = await searchIncident(e);
+                                    if (success) nextStep();
+                                  }}
+                                >
+                                  <i className="fa-solid fa-magnifying-glass" />{" "}
+                                  Fetch
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         )}
-
-                        {/* Help callout */}
-                        <div className="w-full flex items-start gap-3 bg-[#7c3aed]/5 rounded-xl px-4 py-3">
-                          <i className="fa-solid fa-circle-info text-[#7c3aed] text-sm mt-0.5" />
-                          <p className="text-xs text-slate-500 leading-relaxed">
-                            <span className="font-semibold text-slate-600">
-                              Where to find it:
-                            </span>{" "}
-                            Copy the incident number from Salesforce, or use the
-                            Case URL directly.
+                        <div
+                          className="fstep-callout"
+                          style={{
+                            background: "rgba(124, 58, 237, 0.1)",
+                            border: "1px solid rgba(124, 58, 237, 0.22)",
+                          }}
+                        >
+                          <i className="fa-solid fa-circle-info mt-0.5 text-sm text-[#a78bfa]" />
+                          <p>
+                            <strong>Where to find it:</strong> Copy the incident
+                            number from the dashboard or use the Case URL
+                            directly.
                           </p>
                         </div>
                       </div>
@@ -1802,33 +1671,30 @@ gap-0 flex-1 min-h-0"
                   {/* ======================= ✅ STEP 2 ======================= */}
                   {/* ✅ KNOWN ISSUE (RADIO + DISABLED WHEN FETCHED) */}
                   {computedStep === "knownIssue" && (
-                    <div className="w-full h-full flex flex-col justify-center items-center gap-6 px-4">
-                      {/* Visual card */}
-                      <div
-                        className="w-full max-w-md bg-white rounded-2xl border border-slate-200/60 p-8
-      shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col items-center gap-6"
-                      >
-                        {/* Icon */}
-                        <div className="w-16 h-16 rounded-2xl bg-[#0056f0]/8 flex items-center justify-center">
-                          <i className="fa-solid fa-circle-question text-[#0056f0] text-2xl" />
+                    <div className="fstep-center form-mock-dark-radio w-full flex-col gap-6 px-2">
+                      <div className="fstep-card">
+                        <div
+                          className="fstep-card-icon"
+                          style={{
+                            background: "rgba(0, 102, 255, 0.14)",
+                            color: "#0066ff",
+                          }}
+                        >
+                          <i className="fa-solid fa-circle-question" />
                         </div>
-
-                        {/* Question */}
-                        <div className="text-center">
-                          <h2 className="text-sm font-bold text-slate-800 mb-1">
+                        <div>
+                          <h2 className="fstep-card-title">
                             Is this a known issue?
                           </h2>
-                          <p className="text-xs text-slate-400 leading-relaxed">
-                            Known issues follow a shorter lifecycle: Ongoing →
-                            Resolved
+                          <p className="fstep-card-desc">
+                            Tell us whether this is a known recurring issue
+                            before we continue.
                           </p>
                         </div>
-
-                        {/* Radio */}
-                        <div className="w-full flex justify-center">
+                        <div className="w-full">
                           <RadioBtn
                             data={["Yes", "No"]}
-                            radioHead="Known Issue?"
+                            radioHead="Known issue?"
                             horizontal={true}
                             inputProps={{
                               ...form.getInputProps("radio.known_issue"),
@@ -1837,83 +1703,119 @@ gap-0 flex-1 min-h-0"
                             }}
                           />
                         </div>
-
                         {originalIncident && (
-                          <p className="text-xs text-slate-300 italic">
-                            Locked — this incident was fetched from the
-                            database.
+                          <p className="text-center text-xs italic text-slate-500">
+                            Locked — this incident was loaded from the database.
                           </p>
                         )}
-
-                        {/* Info callout */}
-                        <div className="w-full flex items-start gap-3 bg-[#0056f0]/5 rounded-xl px-4 py-3">
-                          <i className="fa-solid fa-lightbulb text-[#0056f0] text-sm mt-0.5" />
-                          <p className="text-xs text-slate-500 leading-relaxed">
-                            <span className="font-semibold text-slate-600">
-                              Tip:
-                            </span>{" "}
-                            Select "Yes" for recurring or previously identified
-                            issues. Select "No" for new or unclassified
-                            incidents.
+                        <div
+                          className="fstep-callout"
+                          style={{
+                            background: "rgba(0, 102, 255, 0.1)",
+                            border: "1px solid rgba(0, 102, 255, 0.22)",
+                          }}
+                        >
+                          <i className="fa-solid fa-lightbulb mt-0.5 text-sm text-[#0066ff]" />
+                          <p>
+                            <strong>Tip:</strong> Select &apos;Yes&apos; for
+                            existing or previously identified issues. Select
+                            &apos;No&apos; for new or unidentified incidents.
                           </p>
                         </div>
                       </div>
-
-                      {/* Continue button */}
-                      <ActionBtn
-                        btnText="Continue"
+                      <button
                         type="button"
+                        className="f-continue"
                         onClick={() => {
                           const result =
                             form.validateField("radio.known_issue");
                           if (result.hasError) return;
                           nextStep();
                         }}
-                      />
+                      >
+                        Continue{" "}
+                        <i
+                          className="fa-solid fa-arrow-right"
+                          style={{ fontSize: 10 }}
+                        />
+                      </button>
                     </div>
                   )}
-                  {/* ======================= ✅ STEP 3 — DEPARTMENT SELECTION (CARD UI) ======================= */}
+                  {/* ======================= ✅ STEP 3 — DEPARTMENT (dark stage — mock parity) ======================= */}
                   {computedStep === "department" && (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-8">
-                      {/* <h2 className="text-2xl font-semibold text-slate-800">
-                        Select Department
-                      </h2> */}
-
-                      <div className="grid grid-cols-3 gap-6 mb-16 place-items-center">
-                        {" "}
-                        {formTabs.map((dept) => (
-                          <DepartmentCard
-                            key={dept}
-                            title={dept}
-                            active={form.values.departmentName === dept}
-                            disabled={departmentLocked}
-                            onClick={() => {
-                              if (departmentLocked) return;
-                              // CREATE → no confirmation needed
-                              if (incidentAction.actionType === "create") {
-                                handleChange("departmentName", dept);
-                                form.setFieldValue(
-                                  "dropDown.affectedProduct",
-                                  null
-                                );
-                                form.setFieldValue(
-                                  "dropDown.notificationMails",
-                                  []
-                                );
-                                return;
-                              }
-                              // UPDATE + department unchanged → do nothing
-                              if (form.values.departmentName === dept) return;
-                              setPendingDepartment(dept);
-                              setDeptFlowStep("confirm"); // 🔥 step 1
-                              setDeptConfirmOpen(true);
-                            }}
-                          />
-                        ))}
+                    <div className="fstep-center fstep-center--dept form-mock-dark-radio w-full flex-col gap-6 px-2">
+                      <div className="fstep-card fstep-card--dept">
+                        {(() => {
+                          const meta = getSectionMeta();
+                          if (!meta) return null;
+                          return (
+                            <div className="fhdr w-full" style={{ marginBottom: 18 }}>
+                              <div className="fhdr-top">
+                                <div
+                                  className="fhdr-icon"
+                                  style={{
+                                    background: "var(--imap-brand-dim)",
+                                    color: "var(--imap-brand)",
+                                  }}
+                                >
+                                  <i className="fa-solid fa-building" />
+                                </div>
+                                <span
+                                  className="fhdr-pill"
+                                  style={{
+                                    background: "var(--imap-brand-dim)",
+                                    color: "var(--imap-brand)",
+                                  }}
+                                >
+                                  {meta.label}
+                                </span>
+                              </div>
+                              <h1 className="fhdr-h1">{meta.title}</h1>
+                              <p className="fhdr-sub">{meta.subtitle}</p>
+                              <div
+                                className="fhdr-line"
+                                style={{
+                                  background:
+                                    "linear-gradient(90deg, rgba(45,212,191,0.35), rgba(0,102,255,0.2), transparent)",
+                                  marginTop: 14,
+                                }}
+                              />
+                            </div>
+                          );
+                        })()}
+                        <div className="dept-grid-light w-full">
+                          {formTabs.map((dept) => (
+                            <DepartmentCard
+                              key={dept}
+                              title={dept}
+                              active={form.values.departmentName === dept}
+                              disabled={departmentLocked}
+                              onClick={() => {
+                                if (departmentLocked) return;
+                                if (incidentAction.actionType === "create") {
+                                  handleChange("departmentName", dept);
+                                  form.setFieldValue(
+                                    "dropDown.affectedProduct",
+                                    null
+                                  );
+                                  form.setFieldValue(
+                                    "dropDown.notificationMails",
+                                    []
+                                  );
+                                  return;
+                                }
+                                if (form.values.departmentName === dept) return;
+                                setPendingDepartment(dept);
+                                setDeptFlowStep("confirm");
+                                setDeptConfirmOpen(true);
+                              }}
+                            />
+                          ))}
+                        </div>
                       </div>
-                      {/* ✅ CONTINUE BUTTON */}
-                      <ActionBtn
-                        btnText="Continue"
+                      <button
+                        type="button"
+                        className="f-continue-light"
                         onClick={() => {
                           if (!form.values.departmentName) {
                             alert("Please select a department");
@@ -1921,21 +1823,33 @@ gap-0 flex-1 min-h-0"
                           }
                           nextStep();
                         }}
-                      />
+                      >
+                        Continue{" "}
+                        <i
+                          className="fa-solid fa-arrow-right"
+                          style={{ fontSize: 11, marginLeft: 6 }}
+                        />
+                      </button>
                     </div>
                   )}
                   {/* ======================= ✅ STEP 4 ======================= */}
                   {/* ✅ FULL FORM (UNCHANGED FIELDS) */}
                   {computedStep === "form" && (
-                    <div className="w-full h-full flex flex-col items-start overflow-y-auto gap-4">
-                      <div className="w-full flex items-center gap-3 mt-2 mb-1">
-                        <div className="w-7 h-7 rounded-lg bg-[#0056f0]/10 flex items-center justify-center">
-                          <i className="fa-solid fa-info text-[#0056f0] text-xs" />
+                    <div className="form-mock-dark-fields imap-form-field-wrap flex w-full flex-col items-start gap-4 overflow-y-auto">
+                      <div className="f-section mt-2">
+                        <div
+                          className="f-section-icon"
+                          style={{
+                            background: "rgba(0, 102, 255, 0.14)",
+                            color: "#0066ff",
+                          }}
+                        >
+                          <i className="fa-solid fa-info text-[10px]" />
                         </div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        <span className="f-section-label">
                           Basic Information
                         </span>
-                        <div className="flex-1 h-px bg-slate-200" />
+                        <div className="f-section-line" />
                       </div>
                       {/* Subject input */}
                       <div style={{ position: "relative", width: "100%" }}>
@@ -1953,16 +1867,23 @@ gap-0 flex-1 min-h-0"
                         />
 
                         {suggestions.length > 0 && (
-                          <div
-                            className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200
-    rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.08)] z-[9999] max-h-[200px] overflow-y-auto"
-                          >
+                          <div className="imap-subject-suggestions">
                             {suggestions.map((item) => (
                               <div
                                 key={item.id}
-                                className="px-3 py-2.5 cursor-pointer text-sm text-slate-600
-          hover:bg-[#0056f0]/5 hover:text-[#0056f0] transition-colors
-          border-b border-slate-100 last:border-b-0"
+                                className="imap-subject-suggestions-item"
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    form.setFieldValue(
+                                      "inputBox.subject",
+                                      item.incident_subject
+                                    );
+                                    setSuggestions([]);
+                                  }
+                                }}
                                 onClick={() => {
                                   form.setFieldValue(
                                     "inputBox.subject",
@@ -1987,14 +1908,20 @@ gap-0 flex-1 min-h-0"
                         }}
                         startingLine=""
                       />
-                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
-                        <div className="w-7 h-7 rounded-lg bg-[#e53e3e]/10 flex items-center justify-center">
-                          <i className="fa-solid fa-signal text-[#e53e3e] text-xs" />
+                      <div className="f-section mt-4">
+                        <div
+                          className="f-section-icon"
+                          style={{
+                            background: "rgba(229, 62, 62, 0.14)",
+                            color: "#f87171",
+                          }}
+                        >
+                          <i className="fa-solid fa-signal text-[10px]" />
                         </div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        <span className="f-section-label">
                           Status & Resolution
                         </span>
-                        <div className="flex-1 h-px bg-slate-200" />
+                        <div className="f-section-line" />
                       </div>
 
                       {/* Status Radio Group */}
@@ -2127,14 +2054,20 @@ gap-0 flex-1 min-h-0"
                           startingLine="Workaround Details:"
                         />
                       )}
-                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
-                        <div className="w-7 h-7 rounded-lg bg-[#7c3aed]/10 flex items-center justify-center">
-                          <i className="fa-solid fa-tags text-[#7c3aed] text-xs" />
+                      <div className="f-section mt-4">
+                        <div
+                          className="f-section-icon"
+                          style={{
+                            background: "rgba(124, 58, 237, 0.14)",
+                            color: "#a78bfa",
+                          }}
+                        >
+                          <i className="fa-solid fa-tags text-[10px]" />
                         </div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        <span className="f-section-label">
                           Classification
                         </span>
-                        <div className="flex-1 h-px bg-slate-200" />
+                        <div className="f-section-line" />
                       </div>
                       <DropdownBtn
                         title="Reported By: "
@@ -2217,14 +2150,18 @@ gap-0 flex-1 min-h-0"
                             handleChange("radio.incidentType", val), // replace default onChange
                         }}
                       />
-                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
-                        <div className="w-7 h-7 rounded-lg bg-[#0891b2]/10 flex items-center justify-center">
-                          <i className="fa-regular fa-clock text-[#0891b2] text-xs" />
+                      <div className="f-section mt-4">
+                        <div
+                          className="f-section-icon"
+                          style={{
+                            background: "rgba(8, 145, 178, 0.14)",
+                            color: "#22d3ee",
+                          }}
+                        >
+                          <i className="fa-regular fa-clock text-[10px]" />
                         </div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                          Timeline
-                        </span>
-                        <div className="flex-1 h-px bg-slate-200" />
+                        <span className="f-section-label">Timeline</span>
+                        <div className="f-section-line" />
                       </div>
                       <DateTimeSelector
                         value={form.values.dateTime.startTime.local}
@@ -2280,14 +2217,20 @@ gap-0 flex-1 min-h-0"
                           )}
                         />
                       )}
-                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
-                        <div className="w-7 h-7 rounded-lg bg-[#d97706]/10 flex items-center justify-center">
-                          <i className="fa-solid fa-chart-line text-[#d97706] text-xs" />
+                      <div className="f-section mt-4">
+                        <div
+                          className="f-section-icon"
+                          style={{
+                            background: "rgba(217, 119, 6, 0.14)",
+                            color: "#fbbf24",
+                          }}
+                        >
+                          <i className="fa-solid fa-chart-line text-[10px]" />
                         </div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        <span className="f-section-label">
                           Impact & Details
                         </span>
-                        <div className="flex-1 h-px bg-slate-200" />
+                        <div className="f-section-line" />
                       </div>
                       <RadioBtn
                         data={["Yes", "No"]}
@@ -2369,14 +2312,20 @@ gap-0 flex-1 min-h-0"
                             handleChange("dropDown.serviceImpacted", val), // replace default onChange
                         }}
                       />
-                      <div className="w-full flex items-center gap-3 mt-4 mb-1">
-                        <div className="w-7 h-7 rounded-lg bg-[#059669]/10 flex items-center justify-center">
-                          <i className="fa-solid fa-link text-[#059669] text-xs" />
+                      <div className="f-section mt-4">
+                        <div
+                          className="f-section-icon"
+                          style={{
+                            background: "rgba(5, 150, 105, 0.14)",
+                            color: "#34d399",
+                          }}
+                        >
+                          <i className="fa-solid fa-link text-[10px]" />
                         </div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        <span className="f-section-label">
                           Ownership & Links
                         </span>
-                        <div className="flex-1 h-px bg-slate-200" />
+                        <div className="f-section-line" />
                       </div>
                       <InputBtn
                         horizontalLayout={false}
@@ -2425,14 +2374,10 @@ gap-0 flex-1 min-h-0"
                           )}
                         />
                       )}
-                      <Box
-                        w="100%"
-                        display="flex"
-                        style={{ justifyContent: "center", gap: "2rem" }}
-                        mt="md"
-                      >
-                        <ActionBtn
-                          btnText="Preview Email"
+                      <div className="f-actions">
+                        <button
+                          type="button"
+                          className="f-btn-preview"
                           onClick={(e) => {
                             e.preventDefault();
                             const result = form.validate();
@@ -2448,35 +2393,66 @@ gap-0 flex-1 min-h-0"
                             }
                             form.setFieldValue("modalOpen", true);
                           }}
-                          btnFont="animated_images"
-                        />
-                        <ActionBtn
-                          btnText="Submit"
-                          btnFont="save"
-                          btnStyle=""
+                        >
+                          <i className="fa-solid fa-envelope-open-text" />
+                          Preview Email
+                        </button>
+                        <button
                           type="button"
+                          className="f-btn-submit"
                           onClick={handleSubmit}
-                        />
-                      </Box>
+                        >
+                          <i className="fa-solid fa-paper-plane" />
+                          Submit
+                        </button>
+                      </div>
                     </div>
                   )}
                 </form>
                 <Modal
                   opened={form.values.modalOpen}
                   onClose={() => form.setFieldValue("modalOpen", false)}
+                  title="Email preview"
+                  centered
                   styles={{
+                    root: {
+                      "--modal-size": "min(96vw, 920px)",
+                    },
+                    header: {
+                      background: "var(--imap-modal-surface)",
+                      borderBottom: "1px solid var(--imap-glass-line)",
+                      padding: "12px 16px",
+                      margin: 0,
+                    },
+                    title: {
+                      color: "var(--imap-form-text)",
+                      fontWeight: 700,
+                      fontSize: "15px",
+                    },
+                    close: {
+                      color: "var(--imap-form-muted)",
+                      cursor: "pointer",
+                    },
                     content: {
-                      "--modal-size": "min(90vw, 900px)",
-                      // min( viewport width * 90%, max width 900px )
+                      width: "min(96vw, 920px)",
+                      maxWidth: "min(96vw, 920px)",
+                      minWidth: "min(100%, 680px)",
+                      background: "var(--imap-modal-surface)",
+                      border: "1px solid var(--imap-glass-line)",
+                    },
+                    body: {
+                      maxHeight: "min(85vh, 900px)",
+                      overflowY: "auto",
+                      padding: "1rem 1.5rem",
                     },
                   }}
                 >
                   <EmailTemplateLayout
+                    previewDark={previewDark}
                     data={{
                       ...form.values,
                       history: oldIncidentData || [],
                     }}
-                    extractIncidentNumber={extractIncidentNumber}
                   />
                 </Modal>
                 <ConfirmSubmitModal
@@ -2486,6 +2462,9 @@ gap-0 flex-1 min-h-0"
                   submitProgress={submitProgress}
                   purpose={confirmPurpose}
                   onCancel={() => {
+                    if (confirmPurpose === "switchFlow") {
+                      pendingFlowSwitchRef.current = null;
+                    }
                     setConfirmOpen(false);
                     setConfirmStage("confirm");
                   }}
@@ -2508,12 +2487,12 @@ gap-0 flex-1 min-h-0"
                   disabled={departmentLocked}
                 />
               </Box>
-            </section>
-          </div>
-        </div>
-      )}
-    </>
+          </>
+        ) : null
+      }
+    />
   );
+
 };
 
 export default Bar;

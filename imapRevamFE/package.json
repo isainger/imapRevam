@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "cp design-mockup-form-v2.html public/design-mockup-form-v2.html 2>/dev/null || true",
+    "prebuild": "cp design-mockup-form-v2.html public/design-mockup-form-v2.html 2>/dev/null || true",
     "dev": "vite",
     "dev:force": "kill -9 $(lsof -ti:5173) || true && vite",
     "build": "vite build",

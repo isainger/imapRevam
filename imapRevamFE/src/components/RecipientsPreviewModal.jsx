@@ -4,8 +4,15 @@ import logo from "../assets/logo.png";
 import { endpoints } from "../services/api";
 
 /* ── Status color helper ── */
-const getStatusColor = (status) => {
+const getStatusColor = (status, dark = false) => {
   const s = (status || "").toLowerCase();
+  if (dark) {
+    if (s === "suspected") return { bg: "rgba(251,191,36,0.15)", color: "#fde68a", border: "rgba(251,191,36,0.4)" };
+    if (s === "ongoing") return { bg: "rgba(248,113,113,0.12)", color: "#fca5a5", border: "rgba(248,113,113,0.35)" };
+    if (s === "resolved") return { bg: "rgba(52,211,153,0.12)", color: "#6ee7b7", border: "rgba(52,211,153,0.35)" };
+    if (s === "resolved with rca") return { bg: "rgba(59,130,246,0.15)", color: "#93c5fd", border: "rgba(59,130,246,0.4)" };
+    return { bg: "rgba(255,255,255,0.06)", color: "#cbd5e1", border: "rgba(255,255,255,0.12)" };
+  }
   if (s === "suspected")         return { bg: "#FEF3C7", color: "#D97706", border: "#F59E0B" };
   if (s === "ongoing")           return { bg: "#FEE2E2", color: "#DC2626", border: "#EF4444" };
   if (s === "resolved")          return { bg: "#D1FAE5", color: "#059669", border: "#10B981" };
@@ -25,12 +32,16 @@ if (typeof document !== "undefined" && !document.getElementById(SPIN_STYLE_ID)) 
 const F = "'Poppins', Arial, sans-serif";
 
 /* ── Reusable recipient row ── */
-const RecipientRow = ({ email, idx, total, isNew = false, isRemoved = false }) => (
+const RecipientRow = ({ email, idx, total, isNew = false, isRemoved = false, dark = false }) => (
   <div style={{
     display: "flex", alignItems: "center", gap: 12,
     padding: "11px 16px",
-    borderBottom: idx === total - 1 ? "none" : "1px solid #f1f5f9",
-    background: isNew ? "#F0FDF4" : isRemoved ? "#FEF2F2" : "transparent",
+    borderBottom: idx === total - 1 ? "none" : dark ? "1px solid rgba(255,255,255,0.06)" : "1px solid #f1f5f9",
+    background: isNew
+      ? dark ? "rgba(52,211,153,0.08)" : "#F0FDF4"
+      : isRemoved
+        ? dark ? "rgba(248,113,113,0.08)" : "#FEF2F2"
+        : "transparent",
   }}>
     <div style={{
       width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
@@ -47,7 +58,7 @@ const RecipientRow = ({ email, idx, total, isNew = false, isRemoved = false }) =
     </div>
     <span style={{
       flex: 1, fontSize: 13, fontFamily: F,
-      color: isRemoved ? "#9CA3AF" : "#334155",
+      color: isRemoved ? (dark ? "#64748b" : "#9CA3AF") : dark ? "#f8fafc" : "#0f172a",
       textDecoration: isRemoved ? "line-through" : "none",
       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
     }}>
@@ -75,10 +86,10 @@ const RecipientRow = ({ email, idx, total, isNew = false, isRemoved = false }) =
 );
 
 /* ── Section header ── */
-const SectionLabel = ({ icon, label, count, badge, badgeColor }) => (
+const SectionLabel = ({ icon, label, count, badge, badgeColor, dark = false }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
     <span style={{ fontSize: 14 }}>{icon}</span>
-    <span style={{ fontSize: 12, fontWeight: 700, color: "#334155", fontFamily: F, letterSpacing: "0.3px" }}>
+    <span style={{ fontSize: 12, fontWeight: 700, color: dark ? "#f8fafc" : "#334155", fontFamily: F, letterSpacing: "0.3px" }}>
       {label} ({count})
     </span>
     {badge && (
@@ -104,6 +115,7 @@ const RecipientsPreviewModal = ({
   localRecipients,  // current form state (always passed)
   incidentSubject,
   incidentStatus,
+  darkChrome = false,
 }) => {
   const [savedRecipients, setSavedRecipients] = useState([]);
   const [subject, setSubject] = useState("");
@@ -156,7 +168,7 @@ const RecipientsPreviewModal = ({
       ]
     : local.map((e) => ({ email: e, state: "unchanged" }));
 
-  const statusColors = getStatusColor(status || incidentStatus);
+  const statusColors = getStatusColor(status || incidentStatus, darkChrome);
 
   return (
     <Modal
@@ -167,11 +179,16 @@ const RecipientsPreviewModal = ({
       radius="xl"
       padding={0}
       size={540}
-      overlayProps={{ blur: 4, opacity: 0.25 }}
+      overlayProps={{ blur: 4, opacity: darkChrome ? 0.45 : 0.25 }}
       styles={{
         content: {
           fontFamily: F,
-          boxShadow: "0 24px 60px rgba(0,0,0,0.14), 0 0 0 1px #E2E8F0",
+          background: darkChrome
+            ? "linear-gradient(165deg, #101b2e 0%, #070f1a 100%)"
+            : "#ffffff",
+          boxShadow: darkChrome
+            ? "0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)"
+            : "0 24px 60px rgba(0,0,0,0.14), 0 0 0 1px #E2E8F0",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -183,40 +200,61 @@ const RecipientsPreviewModal = ({
       {/* ── HEADER ── */}
       <div style={{
         display: "flex", alignItems: "center", gap: 12,
-        padding: "16px 24px", background: "#0f172a",
+        padding: "16px 24px",
+        background: darkChrome ? "#0f172a" : "#f1f5f9",
+        borderBottom: darkChrome ? undefined : "1px solid #e2e8f0",
         borderRadius: "12px 12px 0 0",
       }}>
-        <img src={logo} alt="Taboola" style={{ height: 22 }} />
-        <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.2)" }} />
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", color: "#60a5fa", fontFamily: F, textTransform: "uppercase" }}>
+        <img
+          src={logo}
+          alt="Taboola"
+          style={{
+            height: 22,
+            filter: darkChrome ? "brightness(0) invert(1)" : "none",
+          }}
+        />
+        <div style={{
+          width: 1, height: 18,
+          background: darkChrome ? "rgba(255,255,255,0.2)" : "rgba(15,23,42,0.15)",
+        }} />
+        <span style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: "1.5px",
+          color: darkChrome ? "#93c5fd" : "#1d4ed8",
+          fontFamily: F, textTransform: "uppercase",
+        }}>
           Incident Management
         </span>
         <button onClick={onClose} style={{
-          marginLeft: "auto", background: "rgba(255,255,255,0.08)",
-          border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6,
-          width: 28, height: 28, cursor: "pointer", color: "#94a3b8",
+          marginLeft: "auto",
+          background: darkChrome ? "rgba(255,255,255,0.08)" : "#ffffff",
+          border: darkChrome ? "1px solid rgba(255,255,255,0.15)" : "1.5px solid #cbd5e1",
+          borderRadius: 6,
+          width: 28, height: 28, cursor: "pointer",
+          color: darkChrome ? "#94a3b8" : "#334155",
           fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: darkChrome ? "none" : "0 1px 2px rgba(15, 23, 42, 0.06)",
         }}>✕</button>
       </div>
 
       {/* ── LOADING ── */}
       {loading && (
-        <div style={{ padding: "48px 24px", textAlign: "center" }}>
+        <div style={{ padding: "48px 24px", textAlign: "center", background: darkChrome ? "#0b1220" : "#ffffff" }}>
           <div style={{
             width: 32, height: 32, margin: "0 auto 14px",
-            border: "3px solid #E2E8F0", borderTopColor: "#0056f0",
+            border: darkChrome ? "3px solid rgba(255,255,255,0.12)" : "3px solid #E2E8F0",
+            borderTopColor: "#0056f0",
             borderRadius: "50%", animation: "rpmSpin 0.8s linear infinite",
           }} />
-          <p style={{ color: "#64748b", fontFamily: F, fontSize: 13, margin: 0 }}>Loading recipients…</p>
+          <p style={{ color: darkChrome ? "#94a3b8" : "#64748b", fontFamily: F, fontSize: 13, margin: 0 }}>Loading recipients…</p>
         </div>
       )}
 
       {/* ── ERROR ── */}
       {!loading && error && (
-        <div style={{ padding: "48px 24px", textAlign: "center" }}>
+        <div style={{ padding: "48px 24px", textAlign: "center", background: darkChrome ? "#0b1220" : "#ffffff" }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
-          <p style={{ color: "#ef4444", fontFamily: F, fontWeight: 600, margin: "0 0 6px" }}>Could not load recipients</p>
-          <p style={{ color: "#64748b", fontFamily: F, fontSize: 13, margin: 0 }}>{error}</p>
+          <p style={{ color: "#f87171", fontFamily: F, fontWeight: 600, margin: "0 0 6px" }}>Could not load recipients</p>
+          <p style={{ color: darkChrome ? "#94a3b8" : "#64748b", fontFamily: F, fontSize: 13, margin: 0 }}>{error}</p>
         </div>
       )}
 
@@ -229,8 +267,9 @@ const RecipientsPreviewModal = ({
           {/* Info bar */}
           <div style={{
             display: "flex", alignItems: "center", gap: 14,
-            padding: "14px 24px", background: "#f8fafc",
-            borderBottom: "1px solid #f1f5f9",
+            padding: "14px 24px",
+            background: darkChrome ? "rgba(255,255,255,0.04)" : "#f8fafc",
+            borderBottom: darkChrome ? "1px solid rgba(255,255,255,0.08)" : "1px solid #f1f5f9",
             position: "sticky", top: 0, zIndex: 2,
           }}>
             <div style={{
@@ -243,7 +282,7 @@ const RecipientsPreviewModal = ({
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{
-                margin: 0, fontSize: 13, fontWeight: 600, color: "#1e293b", fontFamily: F,
+                margin: 0, fontSize: 13, fontWeight: 600, color: darkChrome ? "#f8fafc" : "#1e293b", fontFamily: F,
                 lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 {subject || incidentSubject || "Untitled Incident"}
@@ -261,7 +300,13 @@ const RecipientsPreviewModal = ({
             </div>
           </div>
 
-          <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{
+            padding: "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+            background: darkChrome ? "#0b1220" : "#ffffff",
+          }}>
 
             {/* ── EXISTING INCIDENT: show merged diff view ── */}
             {displayId && (
@@ -270,15 +315,16 @@ const RecipientsPreviewModal = ({
                   /* Diff banner */
                   <div style={{
                     display: "flex", alignItems: "center", gap: 10,
-                    background: "#FFFBEB", border: "1px solid #FDE68A",
+                    background: darkChrome ? "rgba(251,191,36,0.12)" : "#FFFBEB",
+                    border: darkChrome ? "1px solid rgba(251,191,36,0.35)" : "1px solid #FDE68A",
                     borderRadius: 8, padding: "10px 14px",
                   }}>
                     <span style={{ fontSize: 15 }}>⚠️</span>
                     <div>
-                      <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#B45309", fontFamily: F }}>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: darkChrome ? "#fde68a" : "#B45309", fontFamily: F }}>
                         Unsaved changes detected
                       </p>
-                      <p style={{ margin: "2px 0 0", fontSize: 11, color: "#92400E", fontFamily: F }}>
+                      <p style={{ margin: "2px 0 0", fontSize: 11, color: darkChrome ? "#fcd34d" : "#92400E", fontFamily: F }}>
                         {added.length > 0 && `${added.length} added`}
                         {added.length > 0 && removed.length > 0 && " · "}
                         {removed.length > 0 && `${removed.length} removed`}
@@ -291,15 +337,22 @@ const RecipientsPreviewModal = ({
                 {/* Merged recipient list */}
                 <div>
                   <SectionLabel
+                    dark={darkChrome}
                     icon="👥"
                     label={hasDiff ? "Recipients after save" : "Current Recipients"}
                     count={mergedList.filter(r => r.state !== "removed").length}
                     badge={hasDiff ? "Pending save" : null}
-                    badgeColor={{ bg: "#FFFBEB", text: "#B45309", border: "#FDE68A" }}
+                    badgeColor={darkChrome
+                      ? { bg: "rgba(251,191,36,0.15)", text: "#fde68a", border: "rgba(251,191,36,0.35)" }
+                      : { bg: "#FFFBEB", text: "#B45309", border: "#FDE68A" }}
                   />
-                  <div style={{ border: "1.5px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+                  <div style={{
+                    border: darkChrome ? "1.5px solid rgba(255,255,255,0.12)" : "1.5px solid #e2e8f0",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                  }}>
                     {mergedList.length === 0 ? (
-                      <div style={{ padding: "24px 20px", textAlign: "center", color: "#94a3b8", fontFamily: F, fontSize: 13 }}>
+                      <div style={{ padding: "24px 20px", textAlign: "center", color: darkChrome ? "#64748b" : "#94a3b8", fontFamily: F, fontSize: 13 }}>
                         No recipients added yet.
                       </div>
                     ) : (
@@ -311,6 +364,7 @@ const RecipientsPreviewModal = ({
                           total={mergedList.length}
                           isNew={state === "new"}
                           isRemoved={state === "removed"}
+                          dark={darkChrome}
                         />
                       ))
                     )}
@@ -321,20 +375,27 @@ const RecipientsPreviewModal = ({
                 {hasDiff && (
                   <div>
                     <SectionLabel
+                      dark={darkChrome}
                       icon="💾"
                       label="Currently saved in DB"
                       count={saved.length}
                       badge="Saved"
-                      badgeColor={{ bg: "#EFF6FF", text: "#1D4ED8", border: "#BFDBFE" }}
+                      badgeColor={darkChrome
+                        ? { bg: "rgba(59,130,246,0.15)", text: "#93c5fd", border: "rgba(59,130,246,0.35)" }
+                        : { bg: "#EFF6FF", text: "#1D4ED8", border: "#BFDBFE" }}
                     />
-                    <div style={{ border: "1.5px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+                    <div style={{
+                      border: darkChrome ? "1.5px solid rgba(255,255,255,0.12)" : "1.5px solid #e2e8f0",
+                      borderRadius: 12,
+                      overflow: "hidden",
+                    }}>
                       {saved.length === 0 ? (
-                        <div style={{ padding: "24px 20px", textAlign: "center", color: "#94a3b8", fontFamily: F, fontSize: 13 }}>
+                        <div style={{ padding: "24px 20px", textAlign: "center", color: darkChrome ? "#64748b" : "#94a3b8", fontFamily: F, fontSize: 13 }}>
                           No recipients saved yet.
                         </div>
                       ) : (
                         saved.map((email, idx) => (
-                          <RecipientRow key={idx} email={email} idx={idx} total={saved.length} />
+                          <RecipientRow key={idx} email={email} idx={idx} total={saved.length} dark={darkChrome} />
                         ))
                       )}
                     </div>
@@ -347,20 +408,27 @@ const RecipientsPreviewModal = ({
             {!displayId && (
               <div>
                 <SectionLabel
+                  dark={darkChrome}
                   icon="👥"
                   label="Notification Recipients"
                   count={local.length}
                   badge="Unsaved preview"
-                  badgeColor={{ bg: "#FFFBEB", text: "#B45309", border: "#FDE68A" }}
+                  badgeColor={darkChrome
+                    ? { bg: "rgba(251,191,36,0.15)", text: "#fde68a", border: "rgba(251,191,36,0.35)" }
+                    : { bg: "#FFFBEB", text: "#B45309", border: "#FDE68A" }}
                 />
-                <div style={{ border: "1.5px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+                <div style={{
+                  border: darkChrome ? "1.5px solid rgba(255,255,255,0.12)" : "1.5px solid #e2e8f0",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                }}>
                   {local.length === 0 ? (
-                    <div style={{ padding: "24px 20px", textAlign: "center", color: "#94a3b8", fontFamily: F, fontSize: 13 }}>
+                    <div style={{ padding: "24px 20px", textAlign: "center", color: darkChrome ? "#64748b" : "#94a3b8", fontFamily: F, fontSize: 13 }}>
                       No recipients added yet.
                     </div>
                   ) : (
                     local.map((email, idx) => (
-                      <RecipientRow key={idx} email={email} idx={idx} total={local.length} />
+                      <RecipientRow key={idx} email={email} idx={idx} total={local.length} dark={darkChrome} />
                     ))
                   )}
                 </div>
@@ -372,9 +440,14 @@ const RecipientsPreviewModal = ({
 
           {/* Footer — pinned at bottom */}
           <div style={{
-            padding: "12px 24px", borderTop: "1px solid #f1f5f9",
-            textAlign: "center", fontSize: 11, color: "#94a3b8", fontFamily: F,
+            padding: "12px 24px",
+            borderTop: darkChrome ? "1px solid rgba(255,255,255,0.08)" : "1px solid #f1f5f9",
+            textAlign: "center",
+            fontSize: 11,
+            color: darkChrome ? "#64748b" : "#94a3b8",
+            fontFamily: F,
             flexShrink: 0,
+            background: darkChrome ? "rgba(0,0,0,0.2)" : undefined,
           }}>
             Taboola Incident Management Team
           </div>

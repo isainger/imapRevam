@@ -9,3 +9,9 @@ dist/
 
 # macOS system files
 .DS_Store
+
+# Local TLS / secrets (do not commit)
+*.pem
+
+# Local AI / editor tooling
+.claude/
