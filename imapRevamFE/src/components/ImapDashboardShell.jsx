@@ -1438,9 +1438,10 @@ return (
             </div>
 
             <div
-              className="flex min-h-0 flex-1 gap-4 overflow-hidden p-[18px] pb-6"
+              ref={dashScrollAreaRef}
+              className="flex min-h-0 flex-1 gap-4 overflow-y-auto overflow-x-hidden p-[18px] pb-6"
             >
-              <div ref={dashScrollAreaRef} className="flex min-h-0 min-w-0 flex-1 flex-col gap-[14px] overflow-y-auto overflow-x-hidden">
+              <div className="flex min-w-0 flex-1 flex-col gap-[14px]">
                 <div
                   ref={dashActiveIncidentsRef}
                   className="imap-glass-card overflow-hidden rounded-[14px] border border-[var(--imap-glass-line)] bg-[var(--imap-glass-03)] backdrop-blur-[14px]"
@@ -1760,7 +1761,7 @@ return (
                 </div>
               </div>
 
-              <div className="flex h-full min-h-0 w-[min(100%,380px)] shrink-0 flex-col gap-[14px] overflow-y-auto lg:w-[340px]">
+              <div className="flex w-[min(100%,380px)] shrink-0 flex-col gap-[14px] lg:w-[340px]">
                 <div className="imap-glass-card overflow-hidden rounded-[14px] border border-[var(--imap-glass-line)] bg-[var(--imap-glass-03)] backdrop-blur-[14px]">
                   <div className="mb-3.5 flex flex-wrap items-center gap-2.5 px-5 pt-4">
                     <span className="text-[15px] font-semibold tracking-[-0.2px] text-[var(--imap-text-bright)]">
