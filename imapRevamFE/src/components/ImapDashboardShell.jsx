@@ -1439,7 +1439,7 @@ return (
 
             <div
               ref={dashScrollAreaRef}
-              className="flex min-h-0 flex-1 gap-4 overflow-y-auto overflow-x-hidden p-[18px] pb-6"
+              className="flex min-h-0 flex-1 items-start gap-4 overflow-y-auto overflow-x-hidden p-[18px] pb-6"
             >
               <div className="flex min-w-0 flex-1 flex-col gap-[14px]">
                 <div
