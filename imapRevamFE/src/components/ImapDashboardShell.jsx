@@ -1323,7 +1323,7 @@ return (
           </aside>
 
           <main
-            className={`relative z-[1] ml-[264px] mt-16 flex min-h-[calc(100vh-4rem)] flex-1 flex-col overflow-hidden ${formOpen ? "hidden" : ""}`}
+            className={`relative z-[1] ml-[264px] mt-16 flex h-[calc(100vh-4rem)] min-h-0 flex-col overflow-hidden ${formOpen ? "hidden" : ""}`}
           >
             <>
             <div className="mb-5 flex border-b border-[var(--imap-glass-line)] bg-gradient-to-b from-[var(--imap-tabbar-grad-from)] to-[var(--imap-tabbar-grad-to)] px-1 pb-1 pt-2 backdrop-blur-[10px]">
@@ -1439,9 +1439,9 @@ return (
 
             <div
               ref={dashScrollAreaRef}
-              className="flex flex-1 gap-4 overflow-auto p-[18px] pb-6"
+              className="flex min-h-0 flex-1 gap-4 overflow-auto p-[18px] pb-6"
             >
-              <div className="flex min-w-0 flex-1 flex-col gap-[14px]">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[14px]">
                 <div
                   ref={dashActiveIncidentsRef}
                   className="imap-glass-card overflow-hidden rounded-[14px] border border-[var(--imap-glass-line)] bg-[var(--imap-glass-03)] backdrop-blur-[14px]"
@@ -1761,7 +1761,7 @@ return (
                 </div>
               </div>
 
-              <div className="flex w-[min(100%,380px)] shrink-0 flex-col gap-[14px] lg:w-[340px]">
+              <div className="flex h-full min-h-0 w-[min(100%,380px)] shrink-0 flex-col gap-[14px] overflow-y-auto lg:w-[340px]">
                 <div className="imap-glass-card overflow-hidden rounded-[14px] border border-[var(--imap-glass-line)] bg-[var(--imap-glass-03)] backdrop-blur-[14px]">
                   <div className="mb-3.5 flex flex-wrap items-center gap-2.5 px-5 pt-4">
                     <span className="text-[15px] font-semibold tracking-[-0.2px] text-[var(--imap-text-bright)]">
@@ -1859,7 +1859,7 @@ return (
                   </div>
                 </div>
 
-                <div className="imap-glass-card flex min-h-[180px] flex-1 flex-col overflow-hidden rounded-[14px] border border-[var(--imap-glass-line)] bg-[var(--imap-glass-03)] backdrop-blur-[14px]">
+                <div className="imap-glass-card flex flex-col overflow-hidden rounded-[14px] border border-[var(--imap-glass-line)] bg-[var(--imap-glass-03)] backdrop-blur-[14px]">
                   <div className="mb-3.5 flex items-center gap-2 px-5 pt-4">
                     <span className="text-[15px] font-semibold tracking-[-0.2px] text-[var(--imap-text-bright)]">
                       Recent updates
@@ -1869,7 +1869,7 @@ return (
                       Synced
                     </span>
                   </div>
-                  <div className="flex flex-1 flex-col gap-px overflow-y-auto px-3.5 pb-3.5">
+                  <div className="flex flex-col gap-px px-3.5 pb-3.5">
                     {dashActivity.length === 0 ? (
                       <p className="px-2 text-xs text-[var(--imap-text-muted)]">No incidents loaded.</p>
                     ) : (
