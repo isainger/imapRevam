@@ -269,6 +269,12 @@ aside::-webkit-scrollbar { width: 4px; }
 aside::-webkit-scrollbar-track { background: transparent; }
 aside::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
 
+/* Dashboard main content scroll areas (left panel + right panel) */
+.imap-mock-shell main ::-webkit-scrollbar { width: 4px; }
+.imap-mock-shell main ::-webkit-scrollbar-track { background: transparent; }
+.imap-mock-shell main ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+.imap-mock-shell main ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
 /* Combobox: keep radius; surfaces come from Mantine dark scheme */
 .mantine-Combobox-dropdown {
   border-radius: 10px !important;

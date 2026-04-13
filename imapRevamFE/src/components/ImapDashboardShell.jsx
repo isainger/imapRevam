@@ -1326,7 +1326,7 @@ return (
             className={`relative z-[1] ml-[264px] mt-16 flex h-[calc(100vh-4rem)] min-h-0 flex-col overflow-hidden ${formOpen ? "hidden" : ""}`}
           >
             <>
-            <div className="mb-5 flex border-b border-[var(--imap-glass-line)] bg-gradient-to-b from-[var(--imap-tabbar-grad-from)] to-[var(--imap-tabbar-grad-to)] px-1 pb-1 pt-2 backdrop-blur-[10px]">
+            <div className="mb-5 shrink-0 flex border-b border-[var(--imap-glass-line)] bg-gradient-to-b from-[var(--imap-tabbar-grad-from)] to-[var(--imap-tabbar-grad-to)] px-1 pb-1 pt-2 backdrop-blur-[10px]">
               {[
                 {
                   label: "Total Incidents",
@@ -1438,10 +1438,9 @@ return (
             </div>
 
             <div
-              ref={dashScrollAreaRef}
-              className="flex min-h-0 flex-1 gap-4 overflow-auto p-[18px] pb-6"
+              className="flex min-h-0 flex-1 gap-4 overflow-hidden p-[18px] pb-6"
             >
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[14px]">
+              <div ref={dashScrollAreaRef} className="flex min-h-0 min-w-0 flex-1 flex-col gap-[14px] overflow-y-auto overflow-x-hidden">
                 <div
                   ref={dashActiveIncidentsRef}
                   className="imap-glass-card overflow-hidden rounded-[14px] border border-[var(--imap-glass-line)] bg-[var(--imap-glass-03)] backdrop-blur-[14px]"
