@@ -34,7 +34,10 @@ const DateTimeSelector = (props) => {
     <div style={{ width: "100%" }}>
       {/* Label */}
       <label className="imap-field-label" style={{ marginBottom: "7px" }}>
-        {label.replace(/\s*\(UTC\)\s*:?\s*$/, "").replace(/:\s*$/, "")}
+        {label
+          .replace(/\s*\(UTC\)\s*:?\s*$/i, "")
+          .replace(/\s*\(LOCAL\)\s*:?\s*$/i, "")
+          .replace(/:\s*$/, "")}
         {" "}
         <span
           style={{
@@ -45,7 +48,7 @@ const DateTimeSelector = (props) => {
             color: "var(--imap-utc-label)",
           }}
         >
-          (UTC)
+          (local)
         </span>
         <span className="imap-required">*</span>
       </label>

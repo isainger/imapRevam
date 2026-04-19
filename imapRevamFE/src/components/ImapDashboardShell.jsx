@@ -1,4 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { fetchDashboardInsights } from "../services/api";
 import { fetchIncidentByNumber } from "../services/incidentOperations";
@@ -82,8 +90,10 @@ function dashSeverityLabel(sev) {
   return x;
 }
 
-function dashFormatRelative(iso) {
+/** `timeTick` bumps on an interval so callers can recompute “Xm ago” labels. */
+function dashFormatRelative(iso, timeTick = 0) {
   if (!iso) return "—";
+  void timeTick;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   const sec = Math.round((Date.now() - d.getTime()) / 1000);
@@ -566,18 +576,34 @@ const DASH_COLS = [
   { key: "updated", label: "Updated" },
 ];
 
-export default function ImapDashboardShell({
-  incidents,
-  onCreate,
-  onUpdate,
-  /** Open update flow with incident / display id prefilled (step 1 fetch field). */
-  onEditIncident,
-  /** When true: left column shows workflow only; dashboard main hidden; form overlay shown. */
-  formOpen = false,
-  sidebarWorkflow = null,
-  formOverlay = null,
-}) {
-  const [dashFilter, setDashFilter] = useState("all");
+function dashDeptFilterKey(dept) {
+  const d = String(dept || "").trim();
+  if (d === "Advertiser") return "advertiser";
+  if (d === "Publisher") return "publisher";
+  return "general";
+}
+
+const ImapDashboardShell = forwardRef(function ImapDashboardShell(
+  {
+    incidents,
+    onCreate,
+    onUpdate,
+    /** Open update flow with incident / display id prefilled (step 1 fetch field). */
+    onEditIncident,
+    /** When true: left column shows workflow only; dashboard main hidden; form overlay shown. */
+    formOpen = false,
+    sidebarWorkflow = null,
+    formOverlay = null,
+    /**
+     * Invoked when the user clicks the header brand while a create/update form is open.
+     * Parent should run the same discard guard as switching New ↔ Update (`beginFlowSwitch`).
+     */
+    onBrandClickWhileFormOpen,
+  },
+  ref,
+) {
+  /** Multi-select filter pill ids; empty = no extra filters (dashboard shows active-only; All Incidents shows all). */
+  const [dashFilterIds, setDashFilterIds] = useState([]);
   /** Pill filters under Active Incidents — shown only after Filters is toggled. */
   const [dashFiltersOpen, setDashFiltersOpen] = useState(false);
   /** Which Monitor nav item is active (drives highlight + scroll actions). */
@@ -599,11 +625,18 @@ export default function ImapDashboardShell({
   const [aiInsightUnconfigured, setAiInsightUnconfigured] = useState(false);
   const [aiInsightDataKey, setAiInsightDataKey] = useState("");
   const [aiInsightTick, setAiInsightTick] = useState(0);
+  const [dashTimeTick, setDashTimeTick] = useState(0);
   const forceAiInsightRefreshRef = useRef(false);
   const dashPaletteInputRef = useRef(null);
   const dashScrollAreaRef = useRef(null);
   const dashActiveIncidentsRef = useRef(null);
   const dashAnalyticsRef = useRef(null);
+
+  // Tick every 30 s so relative timestamps ("2m ago") stay live
+  useEffect(() => {
+    const id = setInterval(() => setDashTimeTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const dashUniqueRaw = useMemo(() => dedupeLatestRows(incidents), [incidents]);
 
@@ -633,30 +666,65 @@ export default function ImapDashboardShell({
         sevKey: sk,
         sev: dashSeverityLabel(r.severity),
         status: r.incident_status || "—",
-        updated: dashFormatRelative(r.updated_at || r.created_at),
+        updated: dashFormatRelative(r.updated_at || r.created_at, dashTimeTick),
       };
     });
-  }, [dashUniqueRaw]);
+  }, [dashUniqueRaw, dashTimeTick]);
 
   const dashFiltered = useMemo(() => {
+    const ids = dashFilterIds;
+    const hasFilters = ids.length > 0;
+    const isAll = ids.includes("all");
+
     let rows = dashDisplayRows;
-    const f = dashFilter;
-    if (f === "advertiser")
-      rows = rows.filter((x) => x.dept === "Advertiser");
-    else if (f === "publisher")
-      rows = rows.filter((x) => x.dept === "Publisher");
-    else if (f === "general") rows = rows.filter((x) => x.dept === "General");
-    else if (f === "critical")
-      rows = rows.filter((x) => x.sevKey === "emergency");
-    else if (f === "high") rows = rows.filter((x) => x.sevKey === "high");
-    else if (f === "ongoing")
-      rows = rows.filter(
-        (x) => x.status === "Ongoing" || x.status === "Suspected",
+
+    // Active-only pre-filter: only when no chips are selected and nav isn't "all_incidents".
+    // When any chip is active the chip logic itself decides what statuses are visible.
+    if (!hasFilters && dashNav !== "all_incidents") {
+      rows = rows.filter((x) => {
+        const st = String(x.status || "").trim();
+        return st === "Ongoing" || st === "Suspected";
+      });
+    }
+
+    // "All" chip → no further filtering
+    if (!isAll && hasFilters) {
+      // Dept: OR within group (Advertiser | Publisher | General)
+      const depts = ids.filter((id) =>
+        ["advertiser", "publisher", "general"].includes(id),
       );
-    else if (f === "resolved")
-      rows = rows.filter((x) => String(x.status || "").startsWith("Resolved"));
-    else if (f === "known_issue")
-      rows = rows.filter((x) => dashIsKnownIssueYes(x.raw));
+      if (depts.length > 0) {
+        rows = rows.filter((x) => depts.includes(dashDeptFilterKey(x.dept)));
+      }
+
+      // Severity: OR within group (Emergency | High)
+      const wantsEmergency = ids.includes("critical");
+      const wantsHigh = ids.includes("high");
+      if (wantsEmergency || wantsHigh) {
+        rows = rows.filter(
+          (x) =>
+            (wantsEmergency && x.sevKey === "emergency") ||
+            (wantsHigh && x.sevKey === "high"),
+        );
+      }
+
+      // Status: OR within group (Ongoing | Resolved) — always applies when chip is active
+      const wantOngoing = ids.includes("ongoing");
+      const wantResolved = ids.includes("resolved");
+      if (wantOngoing || wantResolved) {
+        rows = rows.filter((x) => {
+          const st = String(x.status || "").trim();
+          const ongoingRow = st === "Ongoing" || st === "Suspected";
+          const resRow = st.startsWith("Resolved");
+          return (wantOngoing && ongoingRow) || (wantResolved && resRow);
+        });
+      }
+
+      // Known issue: AND with everything else
+      if (ids.includes("known_issue")) {
+        rows = rows.filter((x) => dashIsKnownIssueYes(x.raw));
+      }
+    }
 
     if (dashSortCol) {
       const map = {
@@ -675,7 +743,7 @@ export default function ImapDashboardShell({
       }
     }
     return rows;
-  }, [dashDisplayRows, dashFilter, dashSortCol, dashSortDir]);
+  }, [dashDisplayRows, dashFilterIds, dashNav, dashSortCol, dashSortDir]);
 
   const dashStats = useMemo(() => {
     const classified = dashUniqueRaw.map((i) => ({
@@ -732,25 +800,37 @@ export default function ImapDashboardShell({
   }, [dashUniqueRaw]);
 
   const dashPerformers = useMemo(() => {
-    const m = {};
+    /** Latest activity time per performer + incident count (for display). */
+    const latestMs = {};
+    const count = {};
     dashUniqueRaw.forEach((r) => {
       const p = r.performer ? String(r.performer).split("(")[0].trim() : "";
       if (!p) return;
-      m[p] = (m[p] || 0) + 1;
+      const t = new Date(r.updated_at || r.created_at || 0).getTime();
+      if (!Number.isFinite(t)) return;
+      count[p] = (count[p] || 0) + 1;
+      if (!latestMs[p] || t > latestMs[p]) latestMs[p] = t;
     });
-    return Object.entries(m)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8);
+    return Object.keys(latestMs)
+      .sort((a, b) => latestMs[b] - latestMs[a])
+      .slice(0, 5)
+      .map((name) => [name, count[name]]);
   }, [dashUniqueRaw]);
 
   const dashActivity = useMemo(() => {
+    const now = Date.now();
+    const windowMs = 48 * 60 * 60 * 1000;
     return [...dashUniqueRaw]
+      .filter((r) => {
+        const t = new Date(r.updated_at || r.created_at || 0).getTime();
+        return Number.isFinite(t) && now - t <= windowMs;
+      })
       .sort(
         (a, b) =>
           new Date(b.updated_at || b.created_at || 0) -
           new Date(a.updated_at || a.created_at || 0),
       )
-      .slice(0, 10);
+      .slice(0, 15);
   }, [dashUniqueRaw]);
 
   const dashAiCacheKey = useMemo(() => {
@@ -788,7 +868,7 @@ export default function ImapDashboardShell({
         severity: dashSeverityLabel(r.severity),
         status: r.incident_status || "",
       })),
-      performerLoad: dashPerformers.slice(0, 6).map(([name, count]) => ({
+      performerLoad: dashPerformers.slice(0, 5).map(([name, count]) => ({
         name,
         count,
       })),
@@ -804,7 +884,10 @@ export default function ImapDashboardShell({
         performer: r.performer
           ? String(r.performer).split("(")[0].trim()
           : "",
-        updatedRelative: dashFormatRelative(r.updated_at || r.created_at),
+        updatedRelative: dashFormatRelative(
+          r.updated_at || r.created_at,
+          dashTimeTick,
+        ),
       })),
     };
   }, [
@@ -814,6 +897,7 @@ export default function ImapDashboardShell({
     dashSevCounts,
     dashNeedsAttention,
     dashPerformers,
+    dashTimeTick,
   ]);
 
   const refreshAiInsights = useCallback(() => {
@@ -868,7 +952,14 @@ export default function ImapDashboardShell({
       }
     })();
     return () => ac.abort();
-  }, [dashAiOpen, dashAiCacheKey, dashAiSnapshot, aiInsightTick]);
+  }, [
+    dashAiOpen,
+    dashAiCacheKey,
+    dashAiSnapshot,
+    aiInsightTick,
+    aiInsightDataKey,
+    aiInsightText,
+  ]);
 
   const dashPaletteRows = useMemo(() => {
     const q = dashPaletteQ.trim().toLowerCase();
@@ -950,6 +1041,39 @@ export default function ImapDashboardShell({
     setDashViewError(null);
   }, []);
 
+  const resetToDefaultDashboard = useCallback(() => {
+    closeDashIncidentView();
+    setDashNav("dashboard");
+    setDashFilterIds([]);
+    setDashFiltersOpen(false);
+    setDashPaletteOpen(false);
+    setDashPaletteQ("");
+    setDashAttentionKey(null);
+    setDashAiOpen(false);
+    requestAnimationFrame(() => {
+      dashScrollAreaRef.current?.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    });
+  }, [closeDashIncidentView]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      resetToDefaultDashboard,
+    }),
+    [resetToDefaultDashboard],
+  );
+
+  const handleBrandClick = useCallback(() => {
+    if (formOpen && typeof onBrandClickWhileFormOpen === "function") {
+      onBrandClickWhileFormOpen();
+      return;
+    }
+    resetToDefaultDashboard();
+  }, [formOpen, onBrandClickWhileFormOpen, resetToDefaultDashboard]);
+
   useEffect(() => {
     if (!dashViewRaw) return;
     const key = dashIncidentFetchKey(dashViewRaw);
@@ -1002,11 +1126,9 @@ export default function ImapDashboardShell({
   }, [dashKnownIssueCount, dashNav]);
 
   const dashDTop = new Date();
-  const dashTopDate = `${dashDTop.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  })} · ${dashDTop.getFullYear()}`;
+  const dashTzDate = { weekday: "short", month: "short", day: "numeric", year: "numeric" };
+  const dashTzTime = { hour: "numeric", minute: "2-digit", hour12: true };
+  const dashTopDate = `${dashDTop.toLocaleDateString("en-US", { ...dashTzDate, timeZone: "Asia/Kolkata" })} · ${dashDTop.toLocaleTimeString("en-US", { ...dashTzTime, timeZone: "Asia/Kolkata" })} IST (${dashDTop.toLocaleTimeString("en-US", { ...dashTzTime, timeZone: "UTC" })} UTC)`;
   const dashTotalForBar = dashUniqueRaw.length || 1;
   const dashSeg = (n) =>
     `${Math.max((n / dashTotalForBar) * 100, n ? 0.5 : 0)}%`;
@@ -1030,20 +1152,29 @@ return (
           />
 
           <header className="fixed top-0 left-0 right-0 z-[200] flex h-16 items-center border-b border-[var(--imap-header-border)] bg-[var(--imap-header-bg)] shadow-[var(--imap-header-shadow)]">
-            <div className="flex h-full w-[264px] shrink-0 items-center gap-3 border-r border-[var(--imap-glass-1)] pl-6 pr-5">
-              <span
-                className="select-none text-[18px] font-extrabold leading-none tracking-[-0.03em] text-[var(--imap-chrome-text)]"
-                style={{ fontFamily: 'Inter, system-ui, "Segoe UI", sans-serif' }}
+            <div className="flex h-full w-[264px] shrink-0 items-center border-r border-[var(--imap-glass-1)] pl-6 pr-5">
+              <button
+                type="button"
+                onClick={handleBrandClick}
+                className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-[var(--imap-chrome-text)] shadow-none outline-none ring-0 transition-none hover:bg-transparent hover:shadow-none focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0 focus-visible:bg-transparent focus-visible:shadow-none focus-visible:outline-none focus-visible:ring-0 active:bg-transparent active:shadow-none"
+                style={{ WebkitTapHighlightColor: "transparent" }}
+                aria-label="Go to dashboard"
               >
-                Taboola
-              </span>
-              <div
-                className="h-[22px] w-px shrink-0 bg-[var(--imap-chrome-divider)]"
-                aria-hidden
-              />
-              <span className="select-none text-[10px] font-semibold uppercase leading-none tracking-[0.15em] text-[var(--imap-chrome-text-soft)]">
-                Incident management
-              </span>
+                <span
+                  className="shrink-0 select-none whitespace-nowrap text-[18px] font-extrabold leading-none tracking-[-0.03em] text-[var(--imap-chrome-text)]"
+                  style={{ fontFamily: 'Inter, system-ui, "Segoe UI", sans-serif' }}
+                >
+                  Taboola
+                </span>
+                <div
+                  className="h-[22px] w-px shrink-0 bg-[var(--imap-chrome-divider)]"
+                  aria-hidden
+                />
+                <span className="select-none text-[10px] font-semibold uppercase leading-[1.15] tracking-[0.15em] text-[var(--imap-chrome-text-soft)]">
+                  <span className="block">Incident</span>
+                  <span className="block">Management</span>
+                </span>
+              </button>
             </div>
             <div className="flex min-w-0 flex-1 items-center px-6">
               <button
@@ -1100,7 +1231,7 @@ return (
               type="button"
               onClick={() => {
                 setDashNav("dashboard");
-                setDashFilter("all");
+                setDashFilterIds([]);
                 setDashFiltersOpen(false);
                 requestAnimationFrame(() => {
                   dashScrollAreaRef.current?.scrollTo({
@@ -1128,7 +1259,7 @@ return (
               type="button"
               onClick={() => {
                 setDashNav("all_incidents");
-                setDashFilter("all");
+                setDashFilterIds([]);
                 setDashFiltersOpen(true);
                 scrollDashEl(dashActiveIncidentsRef.current);
               }}
@@ -1152,7 +1283,7 @@ return (
                 type="button"
                 onClick={() => {
                   setDashNav("known_issues");
-                  setDashFilter("known_issue");
+                  setDashFilterIds(["known_issue"]);
                   setDashFiltersOpen(false);
                   scrollDashEl(dashActiveIncidentsRef.current);
                 }}
@@ -1219,10 +1350,14 @@ return (
                 key={label}
                 onClick={() => {
                   setDashNav("all_incidents");
-                  setDashFilter(filterId);
+                  setDashFilterIds((prev) =>
+                    prev.includes(filterId)
+                      ? prev.filter((x) => x !== filterId)
+                      : [...prev, filterId],
+                  );
                 }}
                 className={`flex w-full cursor-pointer select-none items-center gap-2.5 border-0 bg-transparent py-2.5 pl-[18px] pr-4 text-left text-sm font-medium transition-colors duration-150 hover:bg-[var(--imap-glass-025)] hover:text-[var(--imap-text-bright)] ${
-                  dashFilter === filterId
+                  dashFilterIds.includes(filterId)
                     ? "text-[var(--imap-text-bright)]"
                     : "text-[var(--imap-text-primary)]"
                 }`}
@@ -1477,12 +1612,32 @@ return (
                       <button
                         key={c.id}
                         type="button"
+                        aria-pressed={dashFilterIds.includes(c.id)}
                         onClick={() => {
-                          setDashFilter(c.id);
-                          setDashNav("all_incidents");
+                          if (c.id === "all") {
+                            if (dashFilterIds.includes("all")) {
+                              setDashFilterIds([]);
+                              setDashNav("dashboard");
+                            } else {
+                              setDashFilterIds(["all"]);
+                              setDashNav("all_incidents");
+                            }
+                            return;
+                          }
+                          const willAdd = !dashFilterIds.includes(c.id);
+                          const without = dashFilterIds.filter((x) => x !== c.id && x !== "all");
+                          const next = willAdd ? [...without, c.id] : without;
+                          setDashFilterIds(next);
+                          if (next.length === 0) {
+                            // All chips cleared — go back to active-only view
+                            setDashNav("dashboard");
+                          } else if (willAdd && (c.id === "resolved" || c.id === "ongoing")) {
+                            // Status chips need all statuses visible
+                            setDashNav("all_incidents");
+                          }
                         }}
                         className={`rounded-full border px-3.5 py-[5px] text-[13px] font-medium transition-colors duration-150 ${
-                          dashFilter === c.id
+                          dashFilterIds.includes(c.id)
                             ? "border-[rgba(0,102,255,0.35)] bg-[rgba(0,102,255,0.14)] text-[var(--imap-brand)]"
                             : "border-[var(--imap-glass-line)] bg-transparent text-[var(--imap-text-primary)] hover:border-[var(--imap-border-strong)] hover:text-[var(--imap-text-bright)]"
                         }`}
@@ -1651,24 +1806,32 @@ return (
                             role="button"
                             tabIndex={0}
                             onClick={() => {
-                              setDashNav("all_incidents");
-                              setDashFilter(
+                              const id =
                                 lab === "Advertiser"
                                   ? "advertiser"
                                   : lab === "Publisher"
                                     ? "publisher"
-                                    : "general",
+                                    : "general";
+                              setDashNav("all_incidents");
+                              setDashFilterIds((prev) =>
+                                prev.includes(id)
+                                  ? prev.filter((x) => x !== id)
+                                  : [...prev, id],
                               );
                             }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
-                                setDashNav("all_incidents");
-                                setDashFilter(
+                                const id =
                                   lab === "Advertiser"
                                     ? "advertiser"
                                     : lab === "Publisher"
                                       ? "publisher"
-                                      : "general",
+                                      : "general";
+                                setDashNav("all_incidents");
+                                setDashFilterIds((prev) =>
+                                  prev.includes(id)
+                                    ? prev.filter((x) => x !== id)
+                                    : [...prev, id],
                                 );
                               }
                             }}
@@ -1792,7 +1955,7 @@ return (
                                 const closing = dashAttentionKey === attnKey;
                                 if (!closing) {
                                   setDashNav("all_incidents");
-                                  setDashFilter("all");
+                                  setDashFilterIds([]);
                                 }
                                 setDashAttentionKey((prev) =>
                                   prev === attnKey ? null : attnKey,
@@ -1899,7 +2062,10 @@ return (
                                 {(r.incident_subject || "Update").slice(0, 72)}
                               </div>
                               <div className="mt-1 text-xs text-[var(--imap-text-muted)]">
-                                {dashFormatRelative(r.updated_at || r.created_at)}
+                                {dashFormatRelative(
+                                  r.updated_at || r.created_at,
+                                  dashTimeTick,
+                                )}
                                 {r.performer
                                   ? ` · ${String(r.performer).split("(")[0].trim()}`
                                   : ""}
@@ -1969,6 +2135,7 @@ return (
                       onClick={() => {
                         setDashPaletteOpen(false);
                         setDashPaletteQ("");
+                        setDashViewRaw(row.raw);
                       }}
                     >
                       <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-[rgba(251,191,36,0.15)] text-[#fbbf24]">
@@ -2114,6 +2281,15 @@ return (
                   </button>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                  {dashViewError ? (
+                    <p
+                      className="mb-4 rounded-lg border border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.1)] px-3 py-2 text-xs leading-snug text-[#fcd34d]"
+                      role="status"
+                    >
+                      <i className="fa-solid fa-triangle-exclamation mr-2" />
+                      {dashViewError}
+                    </p>
+                  ) : null}
                   {dashViewLoading && !dashViewDetail ? (
                     <p className="text-sm text-[var(--imap-text-muted)]">
                       <i className="fa-solid fa-circle-notch fa-spin mr-2" />
@@ -2174,4 +2350,6 @@ return (
           ) : null}
         </div>
   );
-}
+});
+
+export default ImapDashboardShell;

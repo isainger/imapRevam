@@ -20,7 +20,10 @@ const MultiSelectEmails = (props) => {
       </label>
       <TagsInput
         data={groupedOptions}
-        classNames={{ input: "custom-input" }}
+        classNames={{
+          input: "custom-input",
+          pill: "imap-email-pill",
+        }}
         value={value}
         onChange={onChange}
         placeholder="Add or select emails"
@@ -54,9 +57,14 @@ const MultiSelectEmails = (props) => {
           },
           pill: {
             fontSize: "13px",
-            lineHeight: 1.35,
-            minHeight: 32,
-            paddingInline: 12,
+            lineHeight: 1.2,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            minHeight: 30,
+            paddingTop: 4,
+            paddingBottom: 4,
+            paddingInline: 10,
           },
           inputField: {
             fontSize: "13px",

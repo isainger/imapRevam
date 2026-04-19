@@ -2,6 +2,18 @@ import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useComputedColorScheme } from "@mantine/core";
 
+const normStatus = (s) => String(s || "").trim().toLowerCase();
+
+/** First non-empty string among alternate API keys (snake_case / camelCase). */
+function pickStr(obj, ...keys) {
+  if (!obj) return "";
+  for (const k of keys) {
+    const v = obj[k];
+    if (v != null && String(v).trim()) return String(v).trim();
+  }
+  return "";
+}
+
 const IncidentData = ({ incidentData }) => {
   const colorScheme = useComputedColorScheme("dark", {
     getInitialValueInEffect: false,
@@ -27,7 +39,11 @@ const IncidentData = ({ incidentData }) => {
         : [incidentData[0].incident_status];
 
     const finalList = statusSequence
-      .map((status) => incidentData.find((i) => i.incident_status === status))
+      .map((status) =>
+        incidentData.find(
+          (i) => normStatus(i.incident_status) === normStatus(status),
+        ),
+      )
       .filter(Boolean);
 
     setTimeline(finalList);
@@ -87,7 +103,8 @@ const IncidentData = ({ incidentData }) => {
           const isCompleted = index !== timeline.length - 1;
           const isCurrent = index === timeline.length - 1;
           const allEntries = incidentData.filter(
-            (entry) => entry.incident_status === item.incident_status
+            (entry) =>
+              normStatus(entry.incident_status) === normStatus(item.incident_status),
           );
 
           return (
@@ -244,46 +261,169 @@ const IncidentData = ({ incidentData }) => {
                               : "rgba(255,255,255,0.06)";
                           }}
                         >
-                          <p style={{
-                            fontSize: "10px",
-                            color: lightTooltip ? "#64748b" : "rgba(255,255,255,0.4)",
-                            fontFamily: "'Poppins', sans-serif",
-                            marginBottom: "4px",
-                          }}>
-                            {entry.updated_at
+                          {(() => {
+                            const st = normStatus(entry.incident_status);
+                            const isRca = st === "resolved with rca";
+                            const isResolvedOnly = st === "resolved";
+                            const isResolvedFlow = isResolvedOnly || isRca;
+                            const isSimpleTimeline = !isResolvedFlow;
+
+                            const statusUpdate = pickStr(
+                              entry,
+                              "status_update_details",
+                              "statusUpdateDetails",
+                            );
+                            const resolvedDet = pickStr(
+                              entry,
+                              "resolved_details",
+                              "resolvedDetails",
+                            );
+                            const rcaDet = pickStr(
+                              entry,
+                              "resolved_with_rca_details",
+                              "resolvedWithRcaDetails",
+                              "resolvedwithRcaDetails",
+                            );
+                            const incidentNarrative = pickStr(
+                              entry,
+                              "incident_details",
+                              "incidentDetails",
+                            );
+
+                            const tsLabel = entry.updated_at
                               ? `Updated: ${new Date(entry.updated_at).toLocaleString()}`
-                              : `Created: ${new Date(entry.created_at).toLocaleString()}`}
-                          </p>
+                              : entry.created_at
+                                ? `Created: ${new Date(entry.created_at).toLocaleString()}`
+                                : "";
 
-                          <div
-                            style={{
+                            const sectionLabel = {
+                              fontSize: "9px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
                               fontWeight: 600,
-                              fontSize: "13px",
-                              color: lightTooltip ? "#0f172a" : "#fff",
+                              color: lightTooltip
+                                ? "#64748b"
+                                : "rgba(255,255,255,0.45)",
                               fontFamily: "'Poppins', sans-serif",
-                              lineHeight: 1.5,
-                            }}
-                            dangerouslySetInnerHTML={{
-                              __html: sanitizeInlineHtml(entry.status_update_details),
-                            }}
-                          />
+                              marginBottom: "4px",
+                            };
+                            const bodyStyle = {
+                              fontSize: "12px",
+                              fontWeight: 500,
+                              color: lightTooltip
+                                ? "#0f172a"
+                                : "rgba(255,255,255,0.92)",
+                              fontFamily: "'Poppins', sans-serif",
+                              lineHeight: 1.55,
+                              marginBottom: "0",
+                            };
+                            const sep = {
+                              marginTop: "10px",
+                              paddingTop: "10px",
+                              borderTop: lightTooltip
+                                ? "1px solid #e2e8f0"
+                                : "1px solid rgba(255,255,255,0.1)",
+                            };
+                            const headingRow = {
+                              display: "flex",
+                              flexWrap: "wrap",
+                              alignItems: "baseline",
+                              justifyContent: "space-between",
+                              gap: "8px",
+                              marginBottom: "8px",
+                            };
+                            const suHeading = {
+                              fontSize: "11px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.1em",
+                              fontWeight: 700,
+                              color: lightTooltip ? "#0f172a" : "#ffffff",
+                              fontFamily: "'Poppins', sans-serif",
+                            };
+                            const timeInline = {
+                              fontSize: "10px",
+                              fontWeight: 500,
+                              color: lightTooltip ? "#64748b" : "rgba(255,255,255,0.5)",
+                              fontFamily: "'Poppins', sans-serif",
+                            };
 
-                          {entry.incident_details && (
-                            <div
-                              style={{
-                                marginTop: "4px",
-                                fontSize: "12px",
-                                color: lightTooltip ? "#475569" : "rgba(255,255,255,0.6)",
-                                fontFamily: "'Poppins', sans-serif",
-                                lineHeight: 1.5,
-                              }}
-                              dangerouslySetInnerHTML={{
-                                __html: sanitizeInlineHtml(
-                                  entry.incident_details
-                                ),
-                              }}
-                            />
-                          )}
+                            // Suspected / Ongoing: status text or incident narrative fallback.
+                            // Resolved: same fallback so the card matches the "Resolved" layout.
+                            // Resolved + RCA: only explicit status_update (RCA narrative stays in RCA section);
+                            // if missing, show a placeholder block so layout matches Resolved (body → divider → details).
+                            let updateBody = "";
+                            if (isSimpleTimeline) {
+                              updateBody = statusUpdate || incidentNarrative;
+                            } else if (isResolvedOnly) {
+                              updateBody = statusUpdate || incidentNarrative;
+                            } else if (isRca) {
+                              updateBody = statusUpdate;
+                            }
+
+                            const emptySuPlaceholder = {
+                              fontSize: "11px",
+                              fontStyle: "italic",
+                              fontWeight: 500,
+                              lineHeight: 1.55,
+                              color: lightTooltip
+                                ? "#94a3b8"
+                                : "rgba(255,255,255,0.45)",
+                              fontFamily: "'Poppins', sans-serif",
+                              margin: "0 0 10px 0",
+                            };
+
+                            return (
+                              <>
+                                <div style={headingRow}>
+                                  <span style={suHeading}>Status update</span>
+                                  {tsLabel ? (
+                                    <span style={timeInline}>{tsLabel}</span>
+                                  ) : null}
+                                </div>
+
+                                {updateBody ? (
+                                  <div
+                                    style={{ ...bodyStyle, marginBottom: "10px" }}
+                                    dangerouslySetInnerHTML={{
+                                      __html: sanitizeInlineHtml(updateBody),
+                                    }}
+                                  />
+                                ) : isResolvedFlow ? (
+                                  <p style={emptySuPlaceholder}>
+                                    No status update text for this snapshot.
+                                  </p>
+                                ) : (
+                                  <p style={{ ...emptySuPlaceholder, margin: "0 0 8px 0" }}>
+                                    No status update text for this snapshot.
+                                  </p>
+                                )}
+
+                                {isResolvedOnly && resolvedDet ? (
+                                  <div style={sep}>
+                                    <div style={sectionLabel}>Resolved details</div>
+                                    <div
+                                      style={bodyStyle}
+                                      dangerouslySetInnerHTML={{
+                                        __html: sanitizeInlineHtml(resolvedDet),
+                                      }}
+                                    />
+                                  </div>
+                                ) : null}
+
+                                {isRca && rcaDet ? (
+                                  <div style={sep}>
+                                    <div style={sectionLabel}>RCA details</div>
+                                    <div
+                                      style={bodyStyle}
+                                      dangerouslySetInnerHTML={{
+                                        __html: sanitizeInlineHtml(rcaDet),
+                                      }}
+                                    />
+                                  </div>
+                                ) : null}
+                              </>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>

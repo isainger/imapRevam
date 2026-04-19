@@ -63,6 +63,9 @@ const Bar = () => {
   const sfPayloadRef = useRef(null);
   const sfTimersRef = useRef([]);
   const sfRetryCountRef = useRef(0);
+  const dashShellRef = useRef(null);
+  /** Synced each render; read in beforeunload (cannot show in-app modal on hard refresh). */
+  const shouldWarnUnloadRef = useRef(false);
 
   const statusGradientMapNormal = {
     Suspected: {
@@ -362,6 +365,20 @@ const Bar = () => {
     return false;
   };
 
+  /** Instant in ms for ordering comparisons (UTC string preferred, matches picker). */
+  function dateTimeInstantMs(dt) {
+    if (!dt) return null;
+    if (dt.utc) {
+      const t = new Date(dt.utc).getTime();
+      return Number.isNaN(t) ? null : t;
+    }
+    if (dt.local) {
+      const t = dt.local.getTime();
+      return Number.isNaN(t) ? null : t;
+    }
+    return null;
+  }
+
   const form = useForm({
     initialValues: initial_values,
     validate: {
@@ -421,24 +438,56 @@ const Bar = () => {
           value.length === 0 ? "Add at least one notification email" : null,
       },
 
-      // DateTime validations
+      // DateTime validations (required + chronological order, second-level precision)
       dateTime: {
         startTime: (value) => (!value.local ? "Start time is required" : null),
-        discoveredTime: (value) =>
-          !value.local ? "Discovered time is required" : null,
-        nextUpdateTime: (value, values) =>
-          values.radio.nextUpdate === "Yes" && !value.local
-            ? "Next update time is required"
-            : null,
-        resolvedTime: (value, values) =>
-          values.radio.status === "Resolved" && !value.local
-            ? "Resolved time is required"
-            : null,
+        discoveredTime: (value, values) => {
+          if (!value.local) return "Discovered time is required";
+          const d = dateTimeInstantMs(value);
+          const s = dateTimeInstantMs(values.dateTime?.startTime);
+          if (d != null && s != null && d < s) {
+            return "Discovered time cannot be before started time";
+          }
+          return null;
+        },
+        nextUpdateTime: (value, values) => {
+          if (values.radio.nextUpdate !== "Yes") return null;
+          if (!value.local) return "Next update time is required";
+          const nu = dateTimeInstantMs(value);
+          const s = dateTimeInstantMs(values.dateTime?.startTime);
+          const disc = dateTimeInstantMs(values.dateTime?.discoveredTime);
+          const floorMs = Math.max(
+            s != null ? s : -Infinity,
+            disc != null ? disc : -Infinity,
+          );
+          if (floorMs === -Infinity) return null;
+          if (nu != null && nu < floorMs) {
+            return "Next update time cannot be before started or discovered time";
+          }
+          return null;
+        },
+        resolvedTime: (value, values) => {
+          const st = values.radio.status;
+          if (st !== "Resolved" && st !== "Resolved with RCA") return null;
+          if (!value.local) return "Resolved time is required";
+          const r = dateTimeInstantMs(value);
+          const disc = dateTimeInstantMs(values.dateTime?.discoveredTime);
+          if (r != null && disc != null && r < disc) {
+            return "Resolved time cannot be before support discovered time";
+          }
+          return null;
+        },
 
-        resolvedWithRcaTime: (value, values) =>
-          values.radio.status === "Resolved with RCA" && !value.local
-            ? "Resolved with RCA time is required"
-            : null,
+        resolvedWithRcaTime: (value, values) => {
+          if (values.radio.status !== "Resolved with RCA") return null;
+          if (!value.local) return "Resolved with RCA time is required";
+          const rca = dateTimeInstantMs(value);
+          const res = dateTimeInstantMs(values.dateTime?.resolvedTime);
+          if (rca != null && res != null && rca < res) {
+            return "Resolved with RCA time cannot be before resolved time";
+          }
+          return null;
+        },
       },
       textArea: {
         incidentDetails: (value) =>
@@ -662,22 +711,13 @@ const Bar = () => {
       ? statusGradientMapKnownIssue
       : statusGradientMapNormal;
 
-  const statusKeys = Object.keys(
-    form.values.radio.known_issue === "Yes"
-      ? statusGradientMapKnownIssue
-      : statusGradientMapNormal
-  );
-  const dbIndex = form.values.disabledStatus
-    ? statusKeys.indexOf(form.values.disabledStatus)
-    : -1;
-
   useEffect(() => {
     // If user selects NO after fetching an incident → reset form fully
     if (form.values.radio.inputIncident === "No" && originalIncident) {
       form.reset(); // full reset to initialValues
       setOriginalIncident(null); // clear fetched reference
-      setCreatedCaseUrl(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when this radio changes
   }, [form.values.radio.inputIncident]);
 
   const handleChange = (field, value) => {
@@ -713,7 +753,7 @@ const Bar = () => {
     checkDB(field, value);
   };
 
-  const checkDB = async (field, value) => {
+  const checkDB = async () => {
     // if (incidentAction.actionType !== "update") return;
 
     const incidentNumber = extractIncidentNumber(
@@ -810,6 +850,25 @@ const Bar = () => {
         local: null,
         utc: null,
       });
+      queueMicrotask(() => {
+        const revalidateAfter = {
+          startTime: [
+            "dateTime.discoveredTime",
+            "dateTime.resolvedTime",
+            "dateTime.resolvedWithRcaTime",
+            "dateTime.nextUpdateTime",
+          ],
+          discoveredTime: [
+            "dateTime.resolvedTime",
+            "dateTime.resolvedWithRcaTime",
+            "dateTime.nextUpdateTime",
+          ],
+          resolvedTime: ["dateTime.resolvedWithRcaTime"],
+        };
+        (revalidateAfter[fieldKey] || []).forEach((path) =>
+          form.validateField(path),
+        );
+      });
       return;
     }
 
@@ -820,7 +879,39 @@ const Bar = () => {
       local: fullDate,
       utc: fullDate.toISOString(),
     });
+    queueMicrotask(() => {
+      form.validateField(`dateTime.${fieldKey}`);
+      const revalidateAfter = {
+        startTime: [
+          "dateTime.discoveredTime",
+          "dateTime.resolvedTime",
+          "dateTime.resolvedWithRcaTime",
+          "dateTime.nextUpdateTime",
+        ],
+        discoveredTime: [
+          "dateTime.resolvedTime",
+          "dateTime.resolvedWithRcaTime",
+          "dateTime.nextUpdateTime",
+        ],
+        resolvedTime: ["dateTime.resolvedWithRcaTime"],
+      };
+      (revalidateAfter[fieldKey] || []).forEach((path) =>
+        form.validateField(path),
+      );
+    });
   };
+
+  useEffect(() => {
+    if (!incidentAction.showForm) return;
+    queueMicrotask(() => {
+      form.validateField("dateTime.resolvedTime");
+      form.validateField("dateTime.resolvedWithRcaTime");
+      if (form.values.radio.nextUpdate === "Yes") {
+        form.validateField("dateTime.nextUpdateTime");
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when status / next-update gates change
+  }, [form.values.radio.status, form.values.radio.nextUpdate]);
 
   const stripHtml = (html) => {
     if (!html) return "";
@@ -914,6 +1005,17 @@ const Bar = () => {
     pendingFlowSwitchRef.current = run;
     openConfirm("switchFlow");
   }
+
+  useEffect(() => {
+    const onBeforeUnload = (e) => {
+      if (!shouldWarnUnloadRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
   const handleExitToDashboard = () => {
     const hasUnsavedChanges =
       (incidentAction.actionType === "update" &&
@@ -1089,7 +1191,7 @@ const Bar = () => {
         setSfCaseUrl(null);
         resetToMainScreen();
       }, 1600);
-    } catch (error) {
+    } catch {
       setSaving(false);
       notifications.show({
         title: "Error",
@@ -1153,12 +1255,16 @@ const Bar = () => {
           Business: "Business",
         };
 
+        const deptName = String(form.values.departmentName || "").trim();
+        const salesforceBusinessArea =
+          deptName === "Publisher" ? "Publisher" : "Media";
+
         const caseRes = await fetch(endpoints.SALESFORCE_CREATE_CASE_API, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             record_type: "0123o00000224NjAAI",
-            business_area: "Publisher",
+            business_area: salesforceBusinessArea,
             subject: form.values.inputBox.subject,
             description:
               stripHtml(form.values.textArea.incidentDetails) + revenueDetails,
@@ -1524,7 +1630,7 @@ const Bar = () => {
       });
       setDeptProgress(100);
       setTimeout(() => setDeptFlowStep("success"), 300);
-    } catch (e) {
+    } catch {
       setDeptFlowStep("compose");
       notifications.show({
         title: "Email failed",
@@ -1580,14 +1686,24 @@ const Bar = () => {
     });
   };
 
+  shouldWarnUnloadRef.current =
+    incidentAction.showForm && shouldConfirmDiscardBeforeFlowSwitch();
+
   return (
     <ImapDashboardShell
+      ref={dashShellRef}
       incidents={allIncidents}
       onCreate={openCreateFlow}
       onUpdate={openUpdateFlow}
       onEditIncident={({ incidentNumber }) =>
         openUpdateFlowWithIncident(incidentNumber)
       }
+      onBrandClickWhileFormOpen={() => {
+        beginFlowSwitch(() => {
+          resetToMainScreen();
+          dashShellRef.current?.resetToDefaultDashboard?.();
+        });
+      }}
       formOpen={!!incidentAction.showForm}
       sidebarWorkflow={
         incidentAction.showForm ? (
@@ -1786,7 +1902,25 @@ const Bar = () => {
               className="flex min-h-0 w-full flex-1 flex-col bg-transparent"
               style={{ boxShadow: "none" }}
             >
-              <form className="flex min-h-0 w-full flex-1 flex-col items-start gap-3 overflow-y-auto">
+              <form
+                className="flex min-h-0 w-full flex-1 flex-col items-start gap-3 overflow-y-auto"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (
+                    incidentAction.actionType === "update" &&
+                    computedStep === "fetchIncident"
+                  ) {
+                    void (async () => {
+                      const result = form.validateField(
+                        "inputBox.inputNumber",
+                      );
+                      if (result.hasError) return;
+                      const ok = await searchIncident(e);
+                      if (ok) nextStep();
+                    })();
+                  }
+                }}
+              >
                   {" "}
                   {/* Already Incident */}
                   {/* ======================= ✅ STEP 1 ======================= */}
@@ -2385,7 +2519,7 @@ const Bar = () => {
                           handleDateTimeChange("startTime", val)
                         }
                         utcValue={form.values.dateTime.startTime.utc}
-                        label="Started Time (UTC) :"
+                        label="Started Time :"
                         checkBox={false}
                         inputProps={form.getInputProps("dateTime.startTime")}
                       />
@@ -2396,7 +2530,7 @@ const Bar = () => {
                           handleDateTimeChange("discoveredTime", val)
                         }
                         utcValue={form.values.dateTime.discoveredTime.utc}
-                        label="Support Discovered Time (UTC) :"
+                        label="Support Discovered Time :"
                         checkBox={false}
                         inputProps={form.getInputProps(
                           "dateTime.discoveredTime"
@@ -2410,7 +2544,7 @@ const Bar = () => {
                             handleDateTimeChange("resolvedTime", val)
                           }
                           utcValue={form.values.dateTime.resolvedTime.utc}
-                          label="Resolved Time (UTC) :"
+                          label="Resolved Time :"
                           checkBox={false}
                           inputProps={form.getInputProps(
                             "dateTime.resolvedTime"
@@ -2426,7 +2560,7 @@ const Bar = () => {
                           utcValue={
                             form.values.dateTime.resolvedWithRcaTime.utc
                           }
-                          label="Resolved with RCA Time (UTC) :"
+                          label="Resolved with RCA Time :"
                           checkBox={false}
                           inputProps={form.getInputProps(
                             "dateTime.resolvedWithRcaTime"
@@ -2598,7 +2732,7 @@ const Bar = () => {
                             handleDateTimeChange("nextUpdateTime", val)
                           }
                           utcValue={form.values.dateTime.nextUpdateTime.utc}
-                          label="Next Update Time (UTC) :"
+                          label="Next Update Time :"
                           checkBox={true}
                           inputProps={form.getInputProps(
                             "dateTime.nextUpdateTime"
