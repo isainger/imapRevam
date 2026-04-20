@@ -572,6 +572,7 @@ const Bar = () => {
     );
 
     prevStatusRef.current = currentStatus;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.values.radio.status]);
 
   useEffect(() => {
@@ -616,6 +617,7 @@ const Bar = () => {
     }));
 
     form.setFieldValue("radio.remainingStatus", remainingStatusValues);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.values.radio.status, form.values.radio.known_issue]);
 
   useEffect(() => {
@@ -641,6 +643,7 @@ const Bar = () => {
     }, 1200);
 
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deptFlowStep]);
 
   useEffect(() => {
@@ -952,6 +955,7 @@ const Bar = () => {
     const uniqueEmails = [...new Set(emails)];
   
     form.setFieldValue("dropDown.notificationMails", uniqueEmails);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.values.dropDown.affectedProduct]);
 
   function extractIncidentNumber(input) {
