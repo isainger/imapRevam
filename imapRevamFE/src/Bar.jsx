@@ -434,8 +434,15 @@ const Bar = () => {
           !value ? "Please select region impacted" : null,
         serviceImpacted: (value) =>
           !value ? "Please select service impacted" : null,
-        notificationMails: (value) =>
-          value.length === 0 ? "Add at least one notification email" : null,
+        notificationMails: (value) => {
+          if (!Array.isArray(value) || value.length === 0)
+            return "Add at least one notification email";
+          const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          const bad = value.filter((v) => !EMAIL_RE.test(String(v).trim()));
+          if (bad.length)
+            return `Invalid email${bad.length > 1 ? "s" : ""}: ${bad.join(", ")}`;
+          return null;
+        },
       },
 
       // DateTime validations (required + chronological order, second-level precision)
@@ -1031,6 +1038,69 @@ const Bar = () => {
     resetToMainScreen();
   };
 
+  const scrollFirstErrorIntoView = (errors) => {
+    const run = () => {
+      const candidates = Array.from(
+        document.querySelectorAll(
+          [
+            '[aria-invalid="true"]',
+            '[data-invalid="true"]',
+            ".imap-radio-error",
+            '[class*="InputWrapper-error"]',
+            '[class*="Input-error"]',
+            '[class*="mantine-"][class*="error"]',
+          ].join(","),
+        ),
+      );
+      let el = null;
+      if (errors && typeof errors === "object") {
+        const firstKey = Object.keys(errors)[0];
+        if (firstKey) {
+          try {
+            el =
+              document.querySelector(`[name="${firstKey}"]`) ||
+              document.querySelector(`[data-path="${firstKey}"]`);
+          } catch {
+            el = null;
+          }
+        }
+      }
+      if (!el && candidates.length) {
+        candidates.sort((a, b) => {
+          const pos = a.compareDocumentPosition(b);
+          if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+          if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+          return 0;
+        });
+        el = candidates[0];
+      }
+      if (!el) return;
+      const target = el.closest(".f-field, .f-fetch-row, .f-row, label") || el;
+      try {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch {
+        target.scrollIntoView();
+      }
+      const focusable = target.querySelector(
+        'input, textarea, select, [tabindex]:not([tabindex="-1"])',
+      );
+      const focusEl = focusable || (el.tagName ? el : null);
+      if (focusEl && typeof focusEl.focus === "function") {
+        try { focusEl.focus({ preventScroll: true }); } catch { focusEl.focus(); }
+      }
+    };
+    if (
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+    ) {
+      window.requestAnimationFrame(() =>
+        window.requestAnimationFrame(() => setTimeout(run, 50)),
+      );
+    } else {
+      setTimeout(run, 60);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const validate = form.validate();
@@ -1041,6 +1111,7 @@ const Bar = () => {
           "Please fix the highlighted fields before previewing.",
         color: "red",
       });
+      scrollFirstErrorIntoView(validate.errors);
       return;
     }
     // SF auto-create: defer case creation + payload prep to inside the modal
@@ -2484,6 +2555,9 @@ const Bar = () => {
                         onChange={(val) =>
                           handleChange("dropDown.notificationMails", val)
                         }
+                        error={
+                          form.errors["dropDown.notificationMails"] || null
+                        }
                         title="Mail To : "
                       />
 
@@ -2754,6 +2828,7 @@ const Bar = () => {
                                   "Please fix the highlighted fields before previewing.",
                                 color: "red",
                               });
+                              scrollFirstErrorIntoView(result.errors);
                               return;
                             }
                             form.setFieldValue("modalOpen", true);

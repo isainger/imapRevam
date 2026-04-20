@@ -1,8 +1,11 @@
-import React from "react";
-import { Stack, TagsInput } from '@mantine/core';
+import React, { useState } from "react";
+import { Stack, TagsInput, Text } from '@mantine/core';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const MultiSelectEmails = (props) => {
-  const { options, value, onChange, title } = props;
+  const { options, value, onChange, title, error } = props;
+  const [rejected, setRejected] = useState([]);
 
   const groupedOptions = options.map((group) => ({
     group: group.group,
@@ -12,8 +15,28 @@ const MultiSelectEmails = (props) => {
     })),
   }));
 
+  const handleChange = (next) => {
+    const seen = new Set();
+    const accepted = [];
+    const bad = [];
+    for (const raw of next) {
+      const tag = String(raw).trim();
+      if (!tag) continue;
+      const key = tag.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (EMAIL_RE.test(tag)) {
+        accepted.push(tag);
+      } else {
+        bad.push(tag);
+      }
+    }
+    setRejected(bad);
+    onChange(accepted);
+  };
+
   return (
-    <Stack gap="xs" w="100%">
+    <Stack gap={4} w="100%">
       <label className="imap-field-label">
         {title.replace(/:\s*$/, '')}
         <span className="imap-required">*</span>
@@ -25,9 +48,11 @@ const MultiSelectEmails = (props) => {
           pill: "imap-email-pill",
         }}
         value={value}
-        onChange={onChange}
+        onChange={handleChange}
+        error={error || undefined}
+        splitChars={[",", " ", ";"]}
         placeholder="Add or select emails"
-        searchable="true"
+        searchable
         comboboxProps={{
           position: "bottom",
           middlewares: { flip: false, shift: false },
@@ -72,6 +97,12 @@ const MultiSelectEmails = (props) => {
           },
         }}
       />
+      {rejected.length > 0 && (
+        <Text size="xs" c="red">
+          Invalid email{rejected.length > 1 ? "s" : ""} ignored:{" "}
+          {rejected.join(", ")}
+        </Text>
+      )}
     </Stack>
   );
 };

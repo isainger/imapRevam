@@ -1952,11 +1952,6 @@ return (
                             <button
                               type="button"
                               onClick={() => {
-                                const closing = dashAttentionKey === attnKey;
-                                if (!closing) {
-                                  setDashNav("all_incidents");
-                                  setDashFilterIds([]);
-                                }
                                 setDashAttentionKey((prev) =>
                                   prev === attnKey ? null : attnKey,
                                 );
@@ -2339,7 +2334,7 @@ return (
                         if (k) onEditIncident({ incidentNumber: k });
                         closeDashIncidentView();
                       }}
-                      className="rounded-lg border border-[rgba(0,102,255,0.35)] bg-[rgba(0,102,255,0.18)] px-4 py-2 text-xs font-semibold text-[#93c5fd] transition-colors hover:bg-[rgba(0,102,255,0.28)]"
+                      className="rounded-lg border border-transparent bg-[var(--imap-brand)] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:brightness-110"
                     >
                       Edit in form
                     </button>
